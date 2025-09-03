@@ -1,0 +1,175 @@
+# .NET and Visual Studio / Rider .gitignore
+# Based on GitHub's official VisualStudio.gitignore with additions for .NET SDK, Rider, VS Code, and common OS artifacts.
+
+############################
+# Build results
+############################
+[Bb]in/
+[Oo]bj/
+**/Debug/
+**/Release/
+**/Debug-net*/
+**/Release-net*/
+**/x64/
+**/x86/
+**/ARM/
+**/ARM64/
+**/bld/
+**/artifacts/
+**/out/
+**/publish/
+
+# .NET
+project.lock.json
+project.fragment.lock.json
+artifacts/
+*.nuget.props
+*.nuget.targets
+*.nupkg
+*.snupkg
+*.nuspec
+packages/
+# Except build/, allow NuGet's Build folder to be committed if present
+!packages/*/build/
+!packages/*/build/**
+# But ignore the rest of the packages folders
+packages/*
+
+# Roslyn Cache
+*.ide/
+
+# MSBuild Binary and Cache
+*.props
+*.targets
+*.tlog
+*.cache
+*.log
+msbuild.log
+msbuild.binlog
+
+# Rider / IntelliJ
+.idea/
+*.sln.iml
+*.iml
+*.iws
+.idea/.idea.*
+.idea/**/shelf/
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usage.statistics.xml
+.idea/**/dictionaries
+.idea/**/libraries
+.idea/**/dataSources/
+.idea/**/dataSources.ids
+.idea/**/dataSources.local.xml
+.idea/**/sqlDataSources.xml
+.idea/**/dynamic.xml
+.idea/**/uiDesigner.xml
+.idea/**/gradle.xml
+.idea/**/libraries/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.vcxproj.user
+*.csproj.user
+*.dbmdl
+*.jfm
+
+# Visual Studio Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+.history/
+
+# Resharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# Test results, coverage, diagnostics
+TestResult*/
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+*.coveragexml
+.coverage/
+.coverage-results/
+BenchmarkDotNet.Artifacts/
+
+# Entity Framework Migrations design-time
+**/Migrations/**/$EF*.
+
+# ASP.NET / Web related
+appsettings.Development.json
+appsettings.*.local.json
+App_Data/
+
+# Logs and traces
+*.log
+logs/
+*.svclog
+
+# Local secrets
+secrets.json
+**/Properties/launchSettings.json
+
+# Tye / Docker / Compose
+.tye/
+.docker/
+**/docker-compose.*.yml
+**/docker-compose.*.yaml
+**/*.container.user
+
+# Node (if present in web frontend or tooling)
+node_modules/
+
+# SQL Server files
+*.mdf
+*.ldf
+*.ndf
+
+# Azure Functions / local tools
+local.settings.json
+
+# Windows / macOS junk
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.tmp
+*.temp
+*.swp
+*.swo
+*.orig
+
+# Images produced by design tools
+*.psd
+*.ai
+
+# Others
+*.pfx
+*.p12
+*.key
+*.cer
+*.orig
+*.bak
+*.old
+*.cache/
+*.orig
+
+# Rider / DotCover
+.idea/**/coverage*
+.idea/**/sonarlint/
+.ionide/
+
+# JetBrains Fleet
+.fleet/
+
+# Git
+*.merge_file_*

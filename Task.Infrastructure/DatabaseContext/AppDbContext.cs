@@ -1,7 +1,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using DotNetEnv;
-using Task.Domain.Entity;
+using Task.Domain.Entities;
 
 namespace Task.Infrastructure.DatabaseContext;
 
@@ -40,7 +40,15 @@ public class AppDbContext : DbContext
         $"Password={Environment.GetEnvironmentVariable("DB_PASSWORD")};" +
         $"TrustServerCertificate=true;";
 
+    public DbSet<TaskItem> Tasks { get; set; }
+    public DbSet<User> Users { get; set; }
+    public DbSet<Category> Categories { get; set; }
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        if (!optionsBuilder.IsConfigured)
+        {
+            optionsBuilder.UseSqlServer(ConnectionString);
+        }
+    }
 
-
-    public DbSet<Domain.Entity.Task> Tasks { get; set; }
 }

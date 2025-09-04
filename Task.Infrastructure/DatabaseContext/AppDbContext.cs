@@ -40,7 +40,7 @@ public class AppDbContext : DbContext
         $"Password={Environment.GetEnvironmentVariable("DB_PASSWORD")};" +
         $"TrustServerCertificate=true;";
 
-    public DbSet<TaskItem> Tasks { get; set; }
-    public DbSet<User> Users { get; set; }
-    public DbSet<Category> Categories { get; set; }
+    public DbSet<TaskItem> Tasks { get; set; } = null!;
+    public DbSet<User> Users { get; set; } = null!;
+    public DbSet<Category> Categories { get; set; } = null!;
 }

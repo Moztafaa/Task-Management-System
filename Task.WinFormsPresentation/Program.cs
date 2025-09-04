@@ -7,6 +7,8 @@ namespace Task.WinFormsPresentation;
 
 
 using System.Windows.Forms;
+using Task.Application.ServiceImplementation;
+using Task.Application.ServiveInterface;
 using Task.Domain.RepositoryInterface;
 using Task.Infrastructure.DatabaseContext;
 using Task.Infrastructure.RepositoryImplementation;
@@ -22,7 +24,7 @@ static class Program
         var services = new ServiceCollection();
         ConfigureServices(services);
         using ServiceProvider serviceProvider = services.BuildServiceProvider();
-        Application.Run(serviceProvider.GetRequiredService<Form1>());
+        Application.Run(serviceProvider.GetRequiredService<MainForm>());
     }
 
 
@@ -31,6 +33,11 @@ static class Program
     {
         services.AddDbContext<AppDbContext>();
         services.AddScoped<ITaskRepository, TaskRepository>();
-        services.AddTransient<Form1>();
+        services.AddScoped<IUserRepository, UserRepository>();
+
+        services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<ITaskService, TaskService>();
+
+        services.AddTransient<MainForm>();
     }
 }

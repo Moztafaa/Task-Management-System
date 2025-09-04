@@ -1,6 +1,6 @@
 ﻿namespace Task.WinFormsPresentation;
 
-partial class Form1
+partial class MainForm
 {
     /// <summary>
     ///  Required designer variable.
@@ -24,15 +24,22 @@ partial class Form1
     #region Windows Form Designer generated code
 
     /// <summary>
-    ///  Required method for Designer support - do not modify
-    ///  the contents of this method with the code editor.
+    /// Required method for Designer support - do not modify
+    /// the contents of this method with the code editor.
     /// </summary>
     private void InitializeComponent()
     {
-        this.components = new System.ComponentModel.Container();
-        this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-        this.ClientSize = new System.Drawing.Size(800, 450);
-        this.Text = "Form1";
+        SuspendLayout();
+        // 
+        // Form1
+        // 
+        AutoScaleDimensions = new System.Drawing.SizeF(12F, 30F);
+        AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+        ClientSize = new System.Drawing.Size(942, 696);
+        Font = new System.Drawing.Font("Segoe UI", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)0));
+        Margin = new System.Windows.Forms.Padding(5, 6, 5, 6);
+        Text = "Form1";
+        ResumeLayout(false);
     }
 
     #endregion

@@ -33,6 +33,13 @@ public class AppDbContext : DbContext
     }
 
 
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        if (!optionsBuilder.IsConfigured)
+        {
+            optionsBuilder.UseSqlServer(ConnectionString);
+        }
+    }
     public static string ConnectionString =>
         $"Server={Environment.GetEnvironmentVariable("DB_SERVER") ?? "localhost,1434"};" +
         $"Database={Environment.GetEnvironmentVariable("DB_NAME") ?? "TaskManagementSystemDB"};" +

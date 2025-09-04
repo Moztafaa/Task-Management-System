@@ -29,6 +29,11 @@ public class TaskItem
     public Guid? CategoryId { get; set; }
     [ForeignKey("CategoryId")]
     public virtual Category? Category { get; set; }
+
+    public override string ToString()
+    {
+        return $"{Title} - {Status} ({Priority}) - Due: {DueDate?.ToString("MM/dd/yyyy") ?? "No due date"}";
+    }
 }
 
 

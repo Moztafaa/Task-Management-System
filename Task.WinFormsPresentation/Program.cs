@@ -24,7 +24,7 @@ static class Program
         var services = new ServiceCollection();
         ConfigureServices(services);
         using ServiceProvider serviceProvider = services.BuildServiceProvider();
-        Application.Run(serviceProvider.GetRequiredService<MainForm>());
+        Application.Run(serviceProvider.GetRequiredService<LauncherForm>());
     }
 
 
@@ -39,5 +39,7 @@ static class Program
         services.AddScoped<ITaskService, TaskService>();
 
         services.AddTransient<MainForm>();
+        services.AddTransient<Task.WinFormsPresentation.Forms.TestForm>();
+        services.AddTransient<LauncherForm>();
     }
 }

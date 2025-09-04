@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Task.Application.DTO;
 
-public class ResigterUserDto
+public class RegisterUserDto
 {
     [Required]
     [MinLength(5)]

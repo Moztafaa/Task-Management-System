@@ -7,7 +7,9 @@ namespace Task.WinFormsPresentation;
 
 
 using System.Windows.Forms;
+using Task.Domain.RepositoryInterface;
 using Task.Infrastructure.DatabaseContext;
+using Task.Infrastructure.RepositoryImplementation;
 
 static class Program
 {
@@ -28,6 +30,7 @@ static class Program
     private static void ConfigureServices(IServiceCollection services)
     {
         services.AddDbContext<AppDbContext>();
+        services.AddScoped<ITaskRepository, TaskRepository>();
         services.AddTransient<Form1>();
     }
 }

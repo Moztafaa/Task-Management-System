@@ -10,9 +10,4 @@
       <ProjectReference Include="..\Task.Domain\Task.Domain.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="ServiceImplementation\" />
-      <Folder Include="ServiveInterface\" />
-    </ItemGroup>
-
 </Project>

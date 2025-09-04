@@ -1,17 +1,33 @@
-namespace Task.WinFormsPresentation;
+
 using System;
+using Microsoft.Extensions.DependencyInjection;
+using Task.Infrastructure;
+using Task.Application;
+namespace Task.WinFormsPresentation;
+
+
 using System.Windows.Forms;
+using Task.Infrastructure.DatabaseContext;
+
 static class Program
 {
-    /// <summary>
-    ///  The main entry point for the application.
-    /// </summary>
     [STAThread]
     static void Main()
     {
-        // To customize application configuration such as set high DPI settings or default font,
-        // see https://aka.ms/applicationconfiguration.
         ApplicationConfiguration.Initialize();
-        Application.Run(new Form1());
+
+        // Setup DIC
+        var services = new ServiceCollection();
+        ConfigureServices(services);
+        using ServiceProvider serviceProvider = services.BuildServiceProvider();
+        Application.Run(serviceProvider.GetRequiredService<Form1>());
+    }
+
+
+
+    private static void ConfigureServices(IServiceCollection services)
+    {
+        services.AddDbContext<AppDbContext>();
+        services.AddTransient<Form1>();
     }
 }

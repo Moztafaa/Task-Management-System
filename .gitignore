@@ -29,6 +29,15 @@ artifacts/
 *.snupkg
 *.nuspec
 packages/
+
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+
+
 # Except build/, allow NuGet's Build folder to be committed if present
 !packages/*/build/
 !packages/*/build/**

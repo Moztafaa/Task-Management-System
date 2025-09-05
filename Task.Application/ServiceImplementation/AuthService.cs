@@ -2,6 +2,7 @@ using System;
 using System.Net;
 using Task.Application.DTO;
 using Task.Application.ServiveInterface;
+using Task.Application.Services;
 using Task.Application.Utilities;
 using Task.Domain.Entities;
 using Task.Domain.RepositoryInterface;
@@ -35,6 +36,10 @@ public class AuthService(IUserRepository userRepository) : IAuthService
         {
             user.LastLoginAt = DateTime.UtcNow;
             userRepository.Update(user);
+
+            // Set session
+            SessionManager.Instance.Login(user);
+
             return user;
         }
         return null;

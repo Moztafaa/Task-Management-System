@@ -12,6 +12,11 @@ public interface ITaskService
     void UpdateTask(TaskItem task);
     void DeleteTask(Guid id);
 
+    // User-specific task methods
+    System.Threading.Tasks.Task<IEnumerable<TaskItem>> GetUserTasksAsync(Guid userId);
+    System.Threading.Tasks.Task AddTaskAsync(TaskItem task);
+    System.Threading.Tasks.Task UpdateTaskAsync(TaskItem task);
+    System.Threading.Tasks.Task DeleteTaskAsync(Guid id);
 
     // Searching Functionality
 

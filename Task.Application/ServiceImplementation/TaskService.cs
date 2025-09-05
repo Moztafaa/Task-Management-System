@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Task.Application.ServiveInterface;
 using Task.Domain.Entities;
 using Task.Domain.RepositoryInterface;
@@ -49,6 +50,29 @@ public class TaskService(ITaskRepository taskRepository) : ITaskService
         {
             throw new ArgumentException("Task not found");
         }
+    }
+
+    // User-specific async methods
+    public async System.Threading.Tasks.Task<IEnumerable<TaskItem>> GetUserTasksAsync(Guid userId)
+    {
+        return await System.Threading.Tasks.Task.FromResult(
+            taskRepository.GetAll()?.Where(t => t.UserId == userId) ?? new List<TaskItem>()
+        );
+    }
+
+    public async System.Threading.Tasks.Task AddTaskAsync(TaskItem task)
+    {
+        await System.Threading.Tasks.Task.Run(() => AddTask(task));
+    }
+
+    public async System.Threading.Tasks.Task UpdateTaskAsync(TaskItem task)
+    {
+        await System.Threading.Tasks.Task.Run(() => UpdateTask(task));
+    }
+
+    public async System.Threading.Tasks.Task DeleteTaskAsync(Guid id)
+    {
+        await System.Threading.Tasks.Task.Run(() => DeleteTask(id));
     }
 
 

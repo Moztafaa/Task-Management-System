@@ -139,12 +139,12 @@ public class ReportService(ITaskRepository taskRepository, IUserRepository userR
 
     private List<TaskPriorityReportDto> GeneratePriorityBreakdown()
     {
-        var priorities = Enum.GetValues<TaskPriority>();
+        TaskPriority[] priorities = Enum.GetValues<TaskPriority>();
         var breakdown = new List<TaskPriorityReportDto>();
 
         foreach (var priority in priorities)
         {
-            var allTasks = taskRepository.GetAll()?.Where(t => t.Priority == priority) ?? Enumerable.Empty<TaskItem>();
+            IEnumerable<TaskItem> allTasks = taskRepository.GetAll()?.Where(t => t.Priority == priority) ?? Enumerable.Empty<TaskItem>();
             var totalCount = allTasks.Count();
             var pendingCount = allTasks.Count(t => t.Status == Domain.Entities.TaskStatus.Pending);
             var inProgressCount = allTasks.Count(t => t.Status == Domain.Entities.TaskStatus.InProgress);

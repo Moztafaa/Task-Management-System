@@ -1,0 +1,1706 @@
+using System;
+using System.Drawing;
+using System.Linq;
+using System.Windows.Forms;
+using Task.Application.ServiveInterface;
+using Task.Application.Services;
+using Task.Domain.Entities;
+using TaskStatus = Task.Domain.Entities.TaskStatus;
+using TaskPriority = Task.Domain.Entities.TaskPriority;
+
+namespace Task.WinFormsPresentation.Forms;
+
+public partial class DashboardForm : Form
+{
+    private readonly ITaskService _taskService;
+    private readonly IAuthService _authService;
+    private readonly IReportService _reportService;
+
+    // Main Layout
+    private Panel topPanel = null!;
+    private Panel sidePanel = null!;
+    private Panel contentPanel = null!;
+
+    // Top Panel Controls
+    private Label lblWelcome = null!;
+    private Button btnProfile = null!;
+    private Button btnLogout = null!;
+
+    // Side Panel Controls
+    private Button btnDashboard = null!;
+    private Button btnTasks = null!;
+    private Button btnAddTask = null!;
+    private Button btnReports = null!;
+    private Button btnSearch = null!;
+
+    // Content Area
+    private Panel dashboardContent = null!;
+    private Panel tasksContent = null!;
+    private Panel addTaskContent = null!;
+    private Panel reportsContent = null!;
+    private Panel searchContent = null!;
+
+    // Dashboard widgets
+    private Panel statsPanel = null!;
+    private Panel recentTasksPanel = null!;
+    private Panel quickActionsPanel = null!;
+
+    // Current user
+    private User? _currentUser;
+
+    public DashboardForm(ITaskService taskService, IAuthService authService, IReportService reportService)
+    {
+        _taskService = taskService;
+        _authService = authService;
+        _reportService = reportService;
+        _currentUser = SessionManager.Instance.CurrentUser;
+
+        InitializeComponent();
+        ApplyModernStyling();
+        LoadDashboard();
+    }
+
+    private void InitializeComponent()
+    {
+        this.Size = new Size(1400, 900);
+        this.Text = "Task Management Dashboard";
+        this.StartPosition = FormStartPosition.CenterScreen;
+        this.WindowState = FormWindowState.Maximized;
+        this.BackColor = Color.FromArgb(248, 249, 250);
+
+        CreateLayout();
+        CreateTopPanel();
+        CreateSidePanel();
+        CreateContentPanels();
+
+        this.Controls.Add(topPanel);
+        this.Controls.Add(sidePanel);
+        this.Controls.Add(contentPanel);
+
+        // Handle resize events
+        this.Resize += DashboardForm_Resize;
+    }
+
+    private void DashboardForm_Resize(object? sender, EventArgs e)
+    {
+        if (contentPanel != null)
+        {
+            contentPanel.Size = new Size(this.Width - 250, this.Height - 80);
+
+            // Refresh all content panel sizes
+            var availableWidth = contentPanel.Width - 40;
+            var availableHeight = contentPanel.Height - 40;
+
+            if (dashboardContent != null)
+                dashboardContent.Size = new Size(availableWidth, availableHeight);
+            if (tasksContent != null)
+                tasksContent.Size = new Size(availableWidth, availableHeight);
+            if (addTaskContent != null)
+                addTaskContent.Size = new Size(availableWidth, availableHeight);
+            if (reportsContent != null)
+                reportsContent.Size = new Size(availableWidth, availableHeight);
+            if (searchContent != null)
+                searchContent.Size = new Size(availableWidth, availableHeight);
+
+            // Refresh dashboard layout if currently visible
+            if (dashboardContent != null && dashboardContent.Visible)
+            {
+                RefreshDashboardLayout();
+            }
+        }
+    }
+    private void RefreshDashboardLayout()
+    {
+        if (statsPanel != null)
+        {
+            statsPanel.Size = new Size(contentPanel.Width - 40, 120);
+        }
+
+        if (recentTasksPanel != null && quickActionsPanel != null)
+        {
+            var panelWidth = (contentPanel.Width - 60) / 2;
+            recentTasksPanel.Size = new Size(panelWidth, 400);
+            quickActionsPanel.Location = new Point(panelWidth + 10, 200);
+            quickActionsPanel.Size = new Size(panelWidth, 400);
+        }
+    }
+
+    private void RefreshTasksLayout()
+    {
+        if (tasksContent == null) return;
+
+        // Find and resize the filter panel and tasks list panel
+        foreach (Control control in tasksContent.Controls)
+        {
+            if (control is Panel panel)
+            {
+                if (panel.BorderStyle == BorderStyle.FixedSingle && !panel.AutoScroll)
+                {
+                    // This is the filter panel
+                    panel.Size = new Size(tasksContent.Width - 40, 60);
+                }
+                else if (panel.BorderStyle == BorderStyle.FixedSingle && panel.AutoScroll)
+                {
+                    // This is the tasks list panel
+                    panel.Size = new Size(tasksContent.Width - 40, tasksContent.Height - 160);
+                }
+            }
+        }
+    }
+
+    private void RefreshSearchLayout()
+    {
+        if (searchContent == null) return;
+
+        // Find and resize the search panel and results panel
+        foreach (Control control in searchContent.Controls)
+        {
+            if (control is Panel panel)
+            {
+                if (panel.Location.Y == 60) // Search panel
+                {
+                    panel.Size = new Size(searchContent.Width - 40, 80);
+                }
+                else if (panel.Location.Y == 160) // Results panel
+                {
+                    panel.Size = new Size(searchContent.Width - 40, searchContent.Height - 180);
+                }
+            }
+        }
+    }
+
+    private void CreateLayout()
+    {
+        // Top Panel
+        topPanel = new Panel
+        {
+            Height = 80,
+            Dock = DockStyle.Top,
+            BackColor = Color.White,
+            BorderStyle = BorderStyle.None
+        };
+
+        // Side Panel
+        sidePanel = new Panel
+        {
+            Width = 250,
+            Dock = DockStyle.Left,
+            BackColor = Color.FromArgb(52, 73, 94),
+            BorderStyle = BorderStyle.None
+        };
+
+        // Content Panel - positioned to avoid overlap with sidebar and top panel
+        contentPanel = new Panel
+        {
+            Location = new Point(250, 80), // Start after sidebar and top panel
+            Size = new Size(this.Width - 250, this.Height - 80), // Fill remaining space
+            BackColor = Color.FromArgb(248, 249, 250),
+            Padding = new Padding(20),
+            Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
+        };
+    }
+
+    private void CreateTopPanel()
+    {
+        // Welcome Label
+        lblWelcome = new Label
+        {
+            Text = $"Welcome back, {_currentUser?.Username ?? "User"}!",
+            Font = new Font("Segoe UI", 16, FontStyle.Bold),
+            ForeColor = Color.FromArgb(44, 62, 80),
+            Location = new Point(20, 25),
+            Size = new Size(400, 30),
+            TextAlign = ContentAlignment.MiddleLeft
+        };
+
+        // Profile Button
+        btnProfile = new Button
+        {
+            Text = "👤 Profile",
+            Size = new Size(100, 40),
+            Location = new Point(this.Width - 240, 20),
+            BackColor = Color.FromArgb(52, 152, 219),
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Font = new Font("Segoe UI", 10, FontStyle.Bold),
+            Cursor = Cursors.Hand
+        };
+        btnProfile.FlatAppearance.BorderSize = 0;
+        btnProfile.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+
+        // Logout Button
+        btnLogout = new Button
+        {
+            Text = "🚪 Logout",
+            Size = new Size(100, 40),
+            Location = new Point(this.Width - 130, 20),
+            BackColor = Color.FromArgb(231, 76, 60),
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Font = new Font("Segoe UI", 10, FontStyle.Bold),
+            Cursor = Cursors.Hand
+        };
+        btnLogout.FlatAppearance.BorderSize = 0;
+        btnLogout.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        btnLogout.Click += BtnLogout_Click;
+
+        topPanel.Controls.Add(lblWelcome);
+        topPanel.Controls.Add(btnProfile);
+        topPanel.Controls.Add(btnLogout);
+
+        // Add bottom border to top panel
+        topPanel.Paint += (s, e) =>
+        {
+            using (var pen = new Pen(Color.FromArgb(236, 240, 241), 2))
+            {
+                e.Graphics.DrawLine(pen, 0, topPanel.Height - 1, topPanel.Width, topPanel.Height - 1);
+            }
+        };
+    }
+
+    private void CreateSidePanel()
+    {
+        // Logo/Title
+        var lblLogo = new Label
+        {
+            Text = "📋 TaskMaster",
+            Font = new Font("Segoe UI", 18, FontStyle.Bold),
+            ForeColor = Color.White,
+            Location = new Point(20, 30),
+            Size = new Size(200, 40),
+            TextAlign = ContentAlignment.MiddleLeft
+        };
+
+        // Navigation Buttons
+        btnDashboard = CreateNavButton("🏠 Dashboard", 100);
+        btnTasks = CreateNavButton("📝 My Tasks", 160);
+        btnAddTask = CreateNavButton("➕ Add Task", 220);
+        btnReports = CreateNavButton("📊 Reports", 280);
+        btnSearch = CreateNavButton("🔍 Search", 340);
+
+        // Select dashboard by default
+        SelectNavButton(btnDashboard);
+
+        // Event handlers
+        btnDashboard.Click += (s, e) => ShowContent("dashboard");
+        btnTasks.Click += (s, e) => ShowContent("tasks");
+        btnAddTask.Click += (s, e) => ShowContent("addtask");
+        btnReports.Click += (s, e) => ShowContent("reports");
+        btnSearch.Click += (s, e) => ShowContent("search");
+
+        sidePanel.Controls.Add(lblLogo);
+        sidePanel.Controls.Add(btnDashboard);
+        sidePanel.Controls.Add(btnTasks);
+        sidePanel.Controls.Add(btnAddTask);
+        sidePanel.Controls.Add(btnReports);
+        sidePanel.Controls.Add(btnSearch);
+    }
+
+    private Button CreateNavButton(string text, int y)
+    {
+        return new Button
+        {
+            Text = text,
+            Size = new Size(210, 50),
+            Location = new Point(20, y),
+            BackColor = Color.Transparent,
+            ForeColor = Color.FromArgb(189, 195, 199),
+            FlatStyle = FlatStyle.Flat,
+            Font = new Font("Segoe UI", 12, FontStyle.Regular),
+            TextAlign = ContentAlignment.MiddleLeft,
+            Cursor = Cursors.Hand,
+            FlatAppearance = { BorderSize = 0 }
+        };
+    }
+
+    private void SelectNavButton(Button selected)
+    {
+        // Reset all buttons
+        foreach (Control control in sidePanel.Controls)
+        {
+            if (control is Button btn && btn != selected)
+            {
+                btn.BackColor = Color.Transparent;
+                btn.ForeColor = Color.FromArgb(189, 195, 199);
+            }
+        }
+
+        // Highlight selected
+        selected.BackColor = Color.FromArgb(44, 62, 80);
+        selected.ForeColor = Color.White;
+    }
+
+    private void CreateContentPanels()
+    {
+        // Calculate the available size for content panels
+        var availableWidth = contentPanel.Width - 40; // Account for padding
+        var availableHeight = contentPanel.Height - 40; // Account for padding
+
+        // Dashboard Content
+        dashboardContent = new Panel
+        {
+            Size = new Size(availableWidth, availableHeight),
+            Location = new Point(0, 0),
+            BackColor = Color.Transparent
+        };
+        CreateDashboardContent();
+
+        // Tasks Content
+        tasksContent = new Panel
+        {
+            Size = new Size(availableWidth, availableHeight),
+            Location = new Point(0, 0),
+            BackColor = Color.Transparent,
+            Visible = false
+        };
+        CreateTasksContent();
+
+        // Add Task Content
+        addTaskContent = new Panel
+        {
+            Size = new Size(availableWidth, availableHeight),
+            Location = new Point(0, 0),
+            BackColor = Color.Transparent,
+            Visible = false
+        };
+        CreateAddTaskContent();
+
+        // Reports Content
+        reportsContent = new Panel
+        {
+            Size = new Size(availableWidth, availableHeight),
+            Location = new Point(0, 0),
+            BackColor = Color.Transparent,
+            Visible = false
+        };
+        CreateReportsContent();
+
+        // Search Content
+        searchContent = new Panel
+        {
+            Size = new Size(availableWidth, availableHeight),
+            Location = new Point(0, 0),
+            BackColor = Color.Transparent,
+            Visible = false
+        };
+        CreateSearchContent();
+
+        contentPanel.Controls.Add(dashboardContent);
+        contentPanel.Controls.Add(tasksContent);
+        contentPanel.Controls.Add(addTaskContent);
+        contentPanel.Controls.Add(reportsContent);
+        contentPanel.Controls.Add(searchContent);
+    }
+
+    private void CreateDashboardContent()
+    {
+        // Page Title
+        var lblTitle = new Label
+        {
+            Text = "Dashboard Overview",
+            Font = new Font("Segoe UI", 24, FontStyle.Bold),
+            ForeColor = Color.FromArgb(44, 62, 80),
+            Location = new Point(0, 0),
+            Size = new Size(400, 40)
+        };
+
+        // Statistics Panel
+        statsPanel = new Panel
+        {
+            Location = new Point(0, 60),
+            Size = new Size(contentPanel.Width - 40, 120), // Use contentPanel width minus padding
+            BackColor = Color.White,
+            BorderStyle = BorderStyle.None
+        };
+        _ = CreateStatsCards(); // Fire and forget for initial load
+
+        // Recent Tasks Panel
+        recentTasksPanel = new Panel
+        {
+            Location = new Point(0, 200),
+            Size = new Size((contentPanel.Width - 60) / 2, 400), // Use contentPanel width minus padding, divided by 2
+            BackColor = Color.White,
+            BorderStyle = BorderStyle.None
+        };
+        CreateRecentTasksPanel();
+
+        // Quick Actions Panel
+        quickActionsPanel = new Panel
+        {
+            Location = new Point((contentPanel.Width - 40) / 2 + 10, 200), // Position next to recent tasks panel
+            Size = new Size((contentPanel.Width - 60) / 2, 400),
+            BackColor = Color.White,
+            BorderStyle = BorderStyle.None
+        };
+        CreateQuickActionsPanel();
+
+        dashboardContent.Controls.Add(lblTitle);
+        dashboardContent.Controls.Add(statsPanel);
+        dashboardContent.Controls.Add(recentTasksPanel);
+        dashboardContent.Controls.Add(quickActionsPanel);
+    }
+
+    private async System.Threading.Tasks.Task CreateStatsCards()
+    {
+        try
+        {
+            var userTasks = await _taskService.GetUserTasksAsync(SessionManager.Instance.UserId);
+            var tasks = userTasks.ToList();
+
+            var totalTasks = tasks.Count;
+            var pendingTasks = tasks.Count(t => t.Status == TaskStatus.Pending);
+            var inProgressTasks = tasks.Count(t => t.Status == TaskStatus.InProgress);
+            var completedTasks = tasks.Count(t => t.Status == TaskStatus.Completed);
+
+            CreateStatCard("Total Tasks", totalTasks.ToString(), Color.FromArgb(52, 152, 219), 0);
+            CreateStatCard("Pending", pendingTasks.ToString(), Color.FromArgb(230, 126, 34), 250);
+            CreateStatCard("In Progress", inProgressTasks.ToString(), Color.FromArgb(241, 196, 15), 500);
+            CreateStatCard("Completed", completedTasks.ToString(), Color.FromArgb(46, 204, 113), 750);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error loading statistics: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void CreateStatCard(string title, string value, Color color, int x)
+    {
+        var card = new Panel
+        {
+            Location = new Point(x, 0),
+            Size = new Size(220, 120),
+            BackColor = color,
+            BorderStyle = BorderStyle.None
+        };
+
+        var lblValue = new Label
+        {
+            Text = value,
+            Font = new Font("Segoe UI", 28, FontStyle.Bold),
+            ForeColor = Color.White,
+            Location = new Point(20, 20),
+            Size = new Size(180, 40),
+            TextAlign = ContentAlignment.MiddleLeft
+        };
+
+        var lblTitle = new Label
+        {
+            Text = title,
+            Font = new Font("Segoe UI", 12, FontStyle.Regular),
+            ForeColor = Color.White,
+            Location = new Point(20, 70),
+            Size = new Size(180, 20),
+            TextAlign = ContentAlignment.MiddleLeft
+        };
+
+        card.Controls.Add(lblValue);
+        card.Controls.Add(lblTitle);
+        statsPanel.Controls.Add(card);
+    }
+
+    private void CreateRecentTasksPanel()
+    {
+        var lblTitle = new Label
+        {
+            Text = "Recent Tasks",
+            Font = new Font("Segoe UI", 16, FontStyle.Bold),
+            ForeColor = Color.FromArgb(44, 62, 80),
+            Location = new Point(20, 20),
+            Size = new Size(200, 30)
+        };
+
+        var taskList = new ListBox
+        {
+            Location = new Point(20, 60),
+            Size = new Size(recentTasksPanel.Width - 40, 320),
+            Font = new Font("Segoe UI", 10),
+            BorderStyle = BorderStyle.None,
+            BackColor = Color.FromArgb(248, 249, 250)
+        };
+
+        // Load recent tasks
+        var recentTasks = _taskService.GetAllTasks()?.OrderByDescending(t => t.CreatedAt).Take(10).ToList() ?? new List<TaskItem>();
+        foreach (var task in recentTasks)
+        {
+            taskList.Items.Add($"{task.Title} - {task.Status}");
+        }
+
+        recentTasksPanel.Controls.Add(lblTitle);
+        recentTasksPanel.Controls.Add(taskList);
+    }
+
+    private void CreateQuickActionsPanel()
+    {
+        var lblTitle = new Label
+        {
+            Text = "Quick Actions",
+            Font = new Font("Segoe UI", 16, FontStyle.Bold),
+            ForeColor = Color.FromArgb(44, 62, 80),
+            Location = new Point(20, 20),
+            Size = new Size(200, 30)
+        };
+
+        var btnQuickAdd = CreateActionButton("➕ Quick Add Task", 60, Color.FromArgb(46, 204, 113));
+        btnQuickAdd.Click += (s, e) => ShowContent("addtask");
+
+        var btnViewAll = CreateActionButton("📝 View All Tasks", 120, Color.FromArgb(52, 152, 219));
+        btnViewAll.Click += (s, e) => ShowContent("tasks");
+
+        var btnGenReport = CreateActionButton("📊 Generate Report", 180, Color.FromArgb(155, 89, 182));
+        btnGenReport.Click += (s, e) => ShowContent("reports");
+
+        var btnSearchAction = CreateActionButton("🔍 Search Tasks", 240, Color.FromArgb(230, 126, 34));
+        btnSearchAction.Click += (s, e) => ShowContent("search");
+
+        quickActionsPanel.Controls.Add(lblTitle);
+        quickActionsPanel.Controls.Add(btnQuickAdd);
+        quickActionsPanel.Controls.Add(btnViewAll);
+        quickActionsPanel.Controls.Add(btnGenReport);
+        quickActionsPanel.Controls.Add(btnSearchAction);
+    }
+
+    private Button CreateActionButton(string text, int y, Color color)
+    {
+        return new Button
+        {
+            Text = text,
+            Location = new Point(20, y),
+            Size = new Size(quickActionsPanel.Width - 40, 50),
+            BackColor = color,
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Font = new Font("Segoe UI", 12, FontStyle.Bold),
+            Cursor = Cursors.Hand,
+            FlatAppearance = { BorderSize = 0 }
+        };
+    }
+
+    private void CreateTasksContent()
+    {
+        // Header
+        var lblTitle = new Label
+        {
+            Text = "My Tasks",
+            Font = new Font("Segoe UI", 20, FontStyle.Bold),
+            ForeColor = Color.FromArgb(44, 62, 80),
+            Location = new Point(20, 20),
+            Size = new Size(200, 30)
+        };
+
+        // Filter Panel
+        var filterPanel = new Panel
+        {
+            Location = new Point(20, 60),
+            Size = new Size(Math.Max(600, tasksContent.Width - 40), 60),
+            BackColor = Color.White,
+            BorderStyle = BorderStyle.FixedSingle
+        };
+
+        var cmbStatus = new ComboBox
+        {
+            Location = new Point(10, 15),
+            Size = new Size(120, 30),
+            DropDownStyle = ComboBoxStyle.DropDownList
+        };
+        cmbStatus.Items.AddRange(new object[] { "All", "Pending", "In Progress", "Completed" });
+        cmbStatus.SelectedIndex = 0;
+
+        var cmbPriority = new ComboBox
+        {
+            Location = new Point(150, 15),
+            Size = new Size(120, 30),
+            DropDownStyle = ComboBoxStyle.DropDownList
+        };
+        cmbPriority.Items.AddRange(new object[] { "All", "Low", "Medium", "High" });
+        cmbPriority.SelectedIndex = 0;
+
+        var btnRefresh = new Button
+        {
+            Text = "🔄 Refresh",
+            Location = new Point(290, 15),
+            Size = new Size(100, 30),
+            BackColor = Color.FromArgb(52, 152, 219),
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Font = new Font("Segoe UI", 10, FontStyle.Bold)
+        };
+        btnRefresh.FlatAppearance.BorderSize = 0;
+
+        filterPanel.Controls.Add(cmbStatus);
+        filterPanel.Controls.Add(cmbPriority);
+        filterPanel.Controls.Add(btnRefresh);
+
+        // Tasks List Panel
+        var tasksListPanel = new Panel
+        {
+            Location = new Point(20, 140),
+            Size = new Size(Math.Max(600, tasksContent.Width - 40), Math.Max(400, tasksContent.Height - 160)),
+            BackColor = Color.White,
+            BorderStyle = BorderStyle.FixedSingle,
+            AutoScroll = true
+        };
+
+        var lblNoTasks = new Label
+        {
+            Text = "Loading tasks...",
+            Font = new Font("Segoe UI", 14),
+            ForeColor = Color.Gray,
+            Location = new Point(50, 50),
+            Size = new Size(200, 30)
+        };
+        tasksListPanel.Controls.Add(lblNoTasks);
+
+        tasksContent.Controls.Add(lblTitle);
+        tasksContent.Controls.Add(filterPanel);
+        tasksContent.Controls.Add(tasksListPanel);
+
+        // Load tasks asynchronously
+        btnRefresh.Click += async (s, e) => await LoadUserTasks(tasksListPanel, cmbStatus.Text, cmbPriority.Text);
+        _ = LoadUserTasks(tasksListPanel, "All", "All"); // Initial load
+    }
+
+    private async System.Threading.Tasks.Task LoadUserTasks(Panel container, string statusFilter, string priorityFilter)
+    {
+        try
+        {
+            container.Controls.Clear();
+
+            var loadingLabel = new Label
+            {
+                Text = "Loading tasks...",
+                Font = new Font("Segoe UI", 14),
+                ForeColor = Color.Gray,
+                Location = new Point(20, 20),
+                Size = new Size(200, 30)
+            };
+            container.Controls.Add(loadingLabel);
+
+            var userTasks = await _taskService.GetUserTasksAsync(SessionManager.Instance.UserId);
+            var tasks = userTasks.ToList();
+
+            // Apply filters
+            if (statusFilter != "All")
+            {
+                var status = Enum.Parse<TaskStatus>(statusFilter.Replace(" ", ""));
+                tasks = tasks.Where(t => t.Status == status).ToList();
+            }
+
+            if (priorityFilter != "All")
+            {
+                var priority = Enum.Parse<TaskPriority>(priorityFilter);
+                tasks = tasks.Where(t => t.Priority == priority).ToList();
+            }
+
+            container.Controls.Clear();
+
+            if (!tasks.Any())
+            {
+                var noTasksLabel = new Label
+                {
+                    Text = "No tasks found matching the selected filters.",
+                    Font = new Font("Segoe UI", 14),
+                    ForeColor = Color.Gray,
+                    Location = new Point(20, 20),
+                    Size = new Size(400, 30)
+                };
+                container.Controls.Add(noTasksLabel);
+                return;
+            }
+
+            int yPos = 10;
+            foreach (var task in tasks.OrderBy(t => t.DueDate))
+            {
+                var taskCard = CreateTaskCard(task, yPos);
+                container.Controls.Add(taskCard);
+                yPos += taskCard.Height + 10;
+            }
+        }
+        catch (Exception ex)
+        {
+            container.Controls.Clear();
+            var errorLabel = new Label
+            {
+                Text = $"Error loading tasks: {ex.Message}",
+                Font = new Font("Segoe UI", 12),
+                ForeColor = Color.Red,
+                Location = new Point(20, 20),
+                Size = new Size(400, 60)
+            };
+            container.Controls.Add(errorLabel);
+        }
+    }
+
+    private Panel CreateTaskCard(TaskItem task, int yPos)
+    {
+        var cardWidth = Math.Max(600, contentPanel.Width - 120); // Responsive width
+        var card = new Panel
+        {
+            Location = new Point(10, yPos),
+            Size = new Size(cardWidth, 100),
+            BackColor = Color.White,
+            BorderStyle = BorderStyle.FixedSingle
+        };
+
+        // Priority color indicator
+        var priorityIndicator = new Panel
+        {
+            Location = new Point(0, 0),
+            Size = new Size(5, card.Height),
+            BackColor = GetPriorityColor(task.Priority)
+        };
+
+        // Task title
+        var lblTitle = new Label
+        {
+            Text = task.Title,
+            Font = new Font("Segoe UI", 12, FontStyle.Bold),
+            Location = new Point(15, 10),
+            Size = new Size(cardWidth - 150, 25), // Responsive width
+            ForeColor = Color.FromArgb(44, 62, 80)
+        };
+
+        // Task description
+        var lblDescription = new Label
+        {
+            Text = task.Description ?? "No description",
+            Font = new Font("Segoe UI", 10),
+            Location = new Point(15, 35),
+            Size = new Size(cardWidth - 150, 20), // Responsive width
+            ForeColor = Color.Gray
+        };
+
+        // Due date
+        var lblDueDate = new Label
+        {
+            Text = task.DueDate?.ToString("MMM dd, yyyy") ?? "No due date",
+            Font = new Font("Segoe UI", 9),
+            Location = new Point(15, 60),
+            Size = new Size(200, 20),
+            ForeColor = task.DueDate < DateTime.Now ? Color.Red : Color.FromArgb(52, 152, 219)
+        };
+
+        // Status dropdown for quick edit
+        var cmbStatus = new ComboBox
+        {
+            Location = new Point(cardWidth - 120, 15),
+            Size = new Size(100, 25),
+            DropDownStyle = ComboBoxStyle.DropDownList,
+            Font = new Font("Segoe UI", 9)
+        };
+        cmbStatus.Items.AddRange(new object[] { "Pending", "In Progress", "Completed" });
+        cmbStatus.SelectedItem = task.Status.ToString().Replace("InProgress", "In Progress");
+        cmbStatus.SelectedIndexChanged += async (s, e) => await UpdateTaskStatus(task, cmbStatus.SelectedItem?.ToString() ?? "");
+
+        // Priority dropdown for quick edit
+        var cmbPriority = new ComboBox
+        {
+            Location = new Point(cardWidth - 120, 45),
+            Size = new Size(100, 25),
+            DropDownStyle = ComboBoxStyle.DropDownList,
+            Font = new Font("Segoe UI", 9)
+        };
+        cmbPriority.Items.AddRange(new object[] { "Low", "Medium", "High" });
+        cmbPriority.SelectedItem = task.Priority.ToString();
+        cmbPriority.SelectedIndexChanged += async (s, e) => await UpdateTaskPriority(task, cmbPriority.SelectedItem?.ToString() ?? "");
+
+        // Delete button
+        var btnDelete = new Button
+        {
+            Text = "🗑️",
+            Location = new Point(cardWidth - 120, 75),
+            Size = new Size(50, 20),
+            BackColor = Color.FromArgb(231, 76, 60),
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Font = new Font("Segoe UI", 8)
+        };
+        btnDelete.FlatAppearance.BorderSize = 0;
+        btnDelete.Click += async (s, e) => await DeleteTask(task);
+
+        card.Controls.Add(priorityIndicator);
+        card.Controls.Add(lblTitle);
+        card.Controls.Add(lblDescription);
+        card.Controls.Add(lblDueDate);
+        card.Controls.Add(cmbStatus);
+        card.Controls.Add(cmbPriority);
+        card.Controls.Add(btnDelete);
+
+        return card;
+    }
+
+    private async System.Threading.Tasks.Task UpdateTaskStatus(TaskItem task, string newStatus)
+    {
+        try
+        {
+            var statusEnum = newStatus.Replace(" ", "") switch
+            {
+                "Pending" => TaskStatus.Pending,
+                "InProgress" => TaskStatus.InProgress,
+                "Completed" => TaskStatus.Completed,
+                _ => task.Status
+            };
+
+            task.Status = statusEnum;
+            await _taskService.UpdateTaskAsync(task);
+
+            // Refresh the current view
+            RefreshCurrentTaskView();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error updating task status: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private async System.Threading.Tasks.Task UpdateTaskPriority(TaskItem task, string newPriority)
+    {
+        try
+        {
+            var priorityEnum = newPriority switch
+            {
+                "Low" => TaskPriority.Low,
+                "Medium" => TaskPriority.Medium,
+                "High" => TaskPriority.High,
+                _ => task.Priority
+            };
+
+            task.Priority = priorityEnum;
+            await _taskService.UpdateTaskAsync(task);
+
+            // Refresh the current view
+            RefreshCurrentTaskView();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error updating task priority: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private async System.Threading.Tasks.Task DeleteTask(TaskItem task)
+    {
+        try
+        {
+            var result = MessageBox.Show($"Are you sure you want to delete the task '{task.Title}'?",
+                "Confirm Delete", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+            if (result == DialogResult.Yes)
+            {
+                await _taskService.DeleteTaskAsync(task.Id);
+                RefreshCurrentTaskView();
+                MessageBox.Show("Task deleted successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error deleting task: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void RefreshCurrentTaskView()
+    {
+        // Refresh both dashboard statistics and task list if currently visible
+        if (dashboardContent != null && dashboardContent.Visible)
+        {
+            _ = LoadDashboard();
+        }
+
+        if (tasksContent != null && tasksContent.Visible)
+        {
+            // Find the tasks list panel and reload it
+            foreach (Control control in tasksContent.Controls)
+            {
+                if (control is Panel panel && panel.BorderStyle == BorderStyle.FixedSingle && panel.AutoScroll)
+                {
+                    _ = LoadUserTasks(panel, "All", "All");
+                    break;
+                }
+            }
+        }
+    }
+
+    private static Color GetPriorityColor(TaskPriority priority)
+    {
+        return priority switch
+        {
+            TaskPriority.High => Color.FromArgb(231, 76, 60),
+            TaskPriority.Medium => Color.FromArgb(241, 196, 15),
+            TaskPriority.Low => Color.FromArgb(46, 204, 113),
+            _ => Color.Gray
+        };
+    }
+
+    private void CreateAddTaskContent()
+    {
+        // Header
+        var lblTitle = new Label
+        {
+            Text = "Add New Task",
+            Font = new Font("Segoe UI", 20, FontStyle.Bold),
+            ForeColor = Color.FromArgb(44, 62, 80),
+            Location = new Point(50, 30),
+            Size = new Size(200, 30)
+        };
+
+        // Form Panel
+        var formPanel = new Panel
+        {
+            Location = new Point(50, 80),
+            Size = new Size(600, 500),
+            BackColor = Color.White,
+            BorderStyle = BorderStyle.FixedSingle
+        };
+
+        // Task Title
+        var lblTaskTitle = new Label
+        {
+            Text = "Task Title *",
+            Font = new Font("Segoe UI", 12, FontStyle.Bold),
+            Location = new Point(30, 30),
+            Size = new Size(100, 25)
+        };
+
+        var txtTitle = new TextBox
+        {
+            Location = new Point(30, 55),
+            Size = new Size(540, 30),
+            Font = new Font("Segoe UI", 11),
+            BorderStyle = BorderStyle.FixedSingle
+        };
+
+        // Description
+        var lblDescription = new Label
+        {
+            Text = "Description",
+            Font = new Font("Segoe UI", 12, FontStyle.Bold),
+            Location = new Point(30, 100),
+            Size = new Size(100, 25)
+        };
+
+        var txtDescription = new TextBox
+        {
+            Location = new Point(30, 125),
+            Size = new Size(540, 80),
+            Font = new Font("Segoe UI", 11),
+            BorderStyle = BorderStyle.FixedSingle,
+            Multiline = true,
+            ScrollBars = ScrollBars.Vertical
+        };
+
+        // Priority
+        var lblPriority = new Label
+        {
+            Text = "Priority *",
+            Font = new Font("Segoe UI", 12, FontStyle.Bold),
+            Location = new Point(30, 220),
+            Size = new Size(100, 25)
+        };
+
+        var cmbPriority = new ComboBox
+        {
+            Location = new Point(30, 245),
+            Size = new Size(150, 30),
+            DropDownStyle = ComboBoxStyle.DropDownList,
+            Font = new Font("Segoe UI", 11)
+        };
+        cmbPriority.Items.AddRange(new object[] { "Low", "Medium", "High" });
+        cmbPriority.SelectedIndex = 1; // Default to Medium
+
+        // Due Date
+        var lblDueDate = new Label
+        {
+            Text = "Due Date",
+            Font = new Font("Segoe UI", 12, FontStyle.Bold),
+            Location = new Point(200, 220),
+            Size = new Size(100, 25)
+        };
+
+        var dtpDueDate = new DateTimePicker
+        {
+            Location = new Point(200, 245),
+            Size = new Size(200, 30),
+            Font = new Font("Segoe UI", 11),
+            Format = DateTimePickerFormat.Short,
+            MinDate = DateTime.Today
+        };
+
+        var chkNoDueDate = new CheckBox
+        {
+            Text = "No due date",
+            Location = new Point(420, 248),
+            Size = new Size(120, 25),
+            Font = new Font("Segoe UI", 10)
+        };
+
+        chkNoDueDate.CheckedChanged += (s, e) => dtpDueDate.Enabled = !chkNoDueDate.Checked;
+
+        // Buttons
+        var btnSave = new Button
+        {
+            Text = "💾 Save Task",
+            Location = new Point(30, 300),
+            Size = new Size(150, 40),
+            BackColor = Color.FromArgb(46, 204, 113),
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Font = new Font("Segoe UI", 12, FontStyle.Bold),
+            Cursor = Cursors.Hand
+        };
+        btnSave.FlatAppearance.BorderSize = 0;
+
+        var btnClear = new Button
+        {
+            Text = "🗑️ Clear",
+            Location = new Point(200, 300),
+            Size = new Size(120, 40),
+            BackColor = Color.FromArgb(149, 165, 166),
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Font = new Font("Segoe UI", 12, FontStyle.Bold),
+            Cursor = Cursors.Hand
+        };
+        btnClear.FlatAppearance.BorderSize = 0;
+
+        // Event handlers
+        btnSave.Click += async (s, e) => await SaveNewTask(txtTitle, txtDescription, cmbPriority, dtpDueDate, chkNoDueDate);
+        btnClear.Click += (s, e) => ClearAddTaskForm(txtTitle, txtDescription, cmbPriority, dtpDueDate, chkNoDueDate);
+
+        formPanel.Controls.Add(lblTaskTitle);
+        formPanel.Controls.Add(txtTitle);
+        formPanel.Controls.Add(lblDescription);
+        formPanel.Controls.Add(txtDescription);
+        formPanel.Controls.Add(lblPriority);
+        formPanel.Controls.Add(cmbPriority);
+        formPanel.Controls.Add(lblDueDate);
+        formPanel.Controls.Add(dtpDueDate);
+        formPanel.Controls.Add(chkNoDueDate);
+        formPanel.Controls.Add(btnSave);
+        formPanel.Controls.Add(btnClear);
+
+        addTaskContent.Controls.Add(lblTitle);
+        addTaskContent.Controls.Add(formPanel);
+    }
+
+    private async System.Threading.Tasks.Task SaveNewTask(TextBox txtTitle, TextBox txtDescription, ComboBox cmbPriority, DateTimePicker dtpDueDate, CheckBox chkNoDueDate)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(txtTitle.Text))
+            {
+                MessageBox.Show("Task title is required.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtTitle.Focus();
+                return;
+            }
+
+            var newTask = new TaskItem
+            {
+                Id = Guid.NewGuid(),
+                Title = txtTitle.Text.Trim(),
+                Description = string.IsNullOrWhiteSpace(txtDescription.Text) ? null : txtDescription.Text.Trim(),
+                Priority = Enum.Parse<TaskPriority>(cmbPriority.Text),
+                Status = TaskStatus.Pending,
+                DueDate = chkNoDueDate.Checked ? null : dtpDueDate.Value,
+                CreatedAt = DateTime.Now,
+                UserId = SessionManager.Instance.UserId
+            };
+
+            await _taskService.AddTaskAsync(newTask);
+
+            MessageBox.Show("Task created successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+            ClearAddTaskForm(txtTitle, txtDescription, cmbPriority, dtpDueDate, chkNoDueDate);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error creating task: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private static void ClearAddTaskForm(TextBox txtTitle, TextBox txtDescription, ComboBox cmbPriority, DateTimePicker dtpDueDate, CheckBox chkNoDueDate)
+    {
+        txtTitle.Clear();
+        txtDescription.Clear();
+        cmbPriority.SelectedIndex = 1; // Medium
+        dtpDueDate.Value = DateTime.Today;
+        chkNoDueDate.Checked = false;
+        dtpDueDate.Enabled = true;
+    }
+
+    private void CreateReportsContent()
+    {
+        // Header
+        var lblTitle = new Label
+        {
+            Text = "Task Reports",
+            Font = new Font("Segoe UI", 20, FontStyle.Bold),
+            ForeColor = Color.FromArgb(44, 62, 80),
+            Location = new Point(50, 30),
+            Size = new Size(200, 30)
+        };
+
+        // Report Options Panel
+        var optionsPanel = new Panel
+        {
+            Location = new Point(50, 80),
+            Size = new Size(700, 150),
+            BackColor = Color.White,
+            BorderStyle = BorderStyle.FixedSingle
+        };
+
+        var lblReportType = new Label
+        {
+            Text = "Select Report Type:",
+            Font = new Font("Segoe UI", 12, FontStyle.Bold),
+            Location = new Point(20, 20),
+            Size = new Size(150, 25)
+        };
+
+        var rbTaskSummary = new RadioButton
+        {
+            Text = "📊 Task Summary Report",
+            Location = new Point(20, 60),
+            Size = new Size(200, 25),
+            Font = new Font("Segoe UI", 11),
+            Checked = true
+        };
+
+        var rbProductivity = new RadioButton
+        {
+            Text = "📈 Productivity Report",
+            Location = new Point(250, 60),
+            Size = new Size(200, 25),
+            Font = new Font("Segoe UI", 11)
+        };
+
+        var rbOverdue = new RadioButton
+        {
+            Text = "⚠️ Overdue Tasks Report",
+            Location = new Point(480, 60),
+            Size = new Size(200, 25),
+            Font = new Font("Segoe UI", 11)
+        };
+
+        var btnGenerate = new Button
+        {
+            Text = "📋 Generate Report",
+            Location = new Point(20, 100),
+            Size = new Size(180, 35),
+            BackColor = Color.FromArgb(52, 152, 219),
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Font = new Font("Segoe UI", 12, FontStyle.Bold),
+            Cursor = Cursors.Hand
+        };
+        btnGenerate.FlatAppearance.BorderSize = 0;
+
+        var btnExport = new Button
+        {
+            Text = "💾 Export to File",
+            Location = new Point(220, 100),
+            Size = new Size(150, 35),
+            BackColor = Color.FromArgb(46, 204, 113),
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Font = new Font("Segoe UI", 12, FontStyle.Bold),
+            Cursor = Cursors.Hand
+        };
+        btnExport.FlatAppearance.BorderSize = 0;
+
+        // Report Display Panel
+        var reportPanel = new Panel
+        {
+            Location = new Point(50, 250),
+            Size = new Size(700, 300),
+            BackColor = Color.White,
+            BorderStyle = BorderStyle.FixedSingle,
+            AutoScroll = true
+        };
+
+        var lblReportContent = new Label
+        {
+            Text = "Click 'Generate Report' to view task statistics and analytics.",
+            Font = new Font("Segoe UI", 12),
+            ForeColor = Color.Gray,
+            Location = new Point(20, 20),
+            Size = new Size(400, 30)
+        };
+        reportPanel.Controls.Add(lblReportContent);
+
+        // Event handlers
+        btnGenerate.Click += async (s, e) => await GenerateReport(reportPanel, rbTaskSummary.Checked, rbProductivity.Checked, rbOverdue.Checked);
+        btnExport.Click += (s, e) => ExportReport();
+
+        optionsPanel.Controls.Add(lblReportType);
+        optionsPanel.Controls.Add(rbTaskSummary);
+        optionsPanel.Controls.Add(rbProductivity);
+        optionsPanel.Controls.Add(rbOverdue);
+        optionsPanel.Controls.Add(btnGenerate);
+        optionsPanel.Controls.Add(btnExport);
+
+        reportsContent.Controls.Add(lblTitle);
+        reportsContent.Controls.Add(optionsPanel);
+        reportsContent.Controls.Add(reportPanel);
+    }
+
+    private async System.Threading.Tasks.Task GenerateReport(Panel reportPanel, bool taskSummary, bool productivity, bool overdue)
+    {
+        try
+        {
+            reportPanel.Controls.Clear();
+
+            var loadingLabel = new Label
+            {
+                Text = "Generating report...",
+                Font = new Font("Segoe UI", 12),
+                ForeColor = Color.Gray,
+                Location = new Point(20, 20),
+                Size = new Size(200, 30)
+            };
+            reportPanel.Controls.Add(loadingLabel);
+
+            var userTasks = await _taskService.GetUserTasksAsync(SessionManager.Instance.UserId);
+            var tasks = userTasks.ToList();
+
+            reportPanel.Controls.Clear();
+
+            int yPos = 20;
+
+            if (taskSummary)
+            {
+                CreateTaskSummaryReport(reportPanel, tasks, yPos);
+            }
+            else if (productivity)
+            {
+                CreateProductivityReport(reportPanel, tasks, yPos);
+            }
+            else if (overdue)
+            {
+                CreateOverdueReport(reportPanel, tasks, yPos);
+            }
+        }
+        catch (Exception ex)
+        {
+            reportPanel.Controls.Clear();
+            var errorLabel = new Label
+            {
+                Text = $"Error generating report: {ex.Message}",
+                Font = new Font("Segoe UI", 12),
+                ForeColor = Color.Red,
+                Location = new Point(20, 20),
+                Size = new Size(400, 60)
+            };
+            reportPanel.Controls.Add(errorLabel);
+        }
+    }
+
+    private static void CreateTaskSummaryReport(Panel panel, List<TaskItem> tasks, int yPos)
+    {
+        var lblTitle = new Label
+        {
+            Text = "📊 Task Summary Report",
+            Font = new Font("Segoe UI", 16, FontStyle.Bold),
+            Location = new Point(20, yPos),
+            Size = new Size(300, 30),
+            ForeColor = Color.FromArgb(44, 62, 80)
+        };
+        panel.Controls.Add(lblTitle);
+        yPos += 40;
+
+        var totalTasks = tasks.Count;
+        var pendingTasks = tasks.Count(t => t.Status == TaskStatus.Pending);
+        var inProgressTasks = tasks.Count(t => t.Status == TaskStatus.InProgress);
+        var completedTasks = tasks.Count(t => t.Status == TaskStatus.Completed);
+
+        var stats = new[]
+        {
+            $"Total Tasks: {totalTasks}",
+            $"Pending: {pendingTasks} ({(totalTasks > 0 ? pendingTasks * 100 / totalTasks : 0)}%)",
+            $"In Progress: {inProgressTasks} ({(totalTasks > 0 ? inProgressTasks * 100 / totalTasks : 0)}%)",
+            $"Completed: {completedTasks} ({(totalTasks > 0 ? completedTasks * 100 / totalTasks : 0)}%)"
+        };
+
+        foreach (var stat in stats)
+        {
+            var lblStat = new Label
+            {
+                Text = stat,
+                Font = new Font("Segoe UI", 12),
+                Location = new Point(40, yPos),
+                Size = new Size(400, 25)
+            };
+            panel.Controls.Add(lblStat);
+            yPos += 30;
+        }
+    }
+
+    private static void CreateProductivityReport(Panel panel, List<TaskItem> tasks, int yPos)
+    {
+        var lblTitle = new Label
+        {
+            Text = "📈 Productivity Report",
+            Font = new Font("Segoe UI", 16, FontStyle.Bold),
+            Location = new Point(20, yPos),
+            Size = new Size(300, 30),
+            ForeColor = Color.FromArgb(44, 62, 80)
+        };
+        panel.Controls.Add(lblTitle);
+        yPos += 40;
+
+        var completedTasks = tasks.Count(t => t.Status == TaskStatus.Completed);
+        var completedThisWeek = tasks.Count(t => t.Status == TaskStatus.Completed &&
+            t.CreatedAt >= DateTime.Now.AddDays(-7));
+
+        var avgCompletionTime = tasks.Where(t => t.Status == TaskStatus.Completed && t.DueDate.HasValue)
+            .Select(t => t.DueDate!.Value.Subtract(t.CreatedAt).Days)
+            .DefaultIfEmpty(0)
+            .Average();
+
+        var productivityStats = new[]
+        {
+            $"Tasks Completed: {completedTasks}",
+            $"Completed This Week: {completedThisWeek}",
+            $"Average Completion Time: {avgCompletionTime:F1} days",
+            $"Productivity Score: {(completedTasks > 0 ? "Good" : "Needs Improvement")}"
+        };
+
+        foreach (var stat in productivityStats)
+        {
+            var lblStat = new Label
+            {
+                Text = stat,
+                Font = new Font("Segoe UI", 12),
+                Location = new Point(40, yPos),
+                Size = new Size(400, 25)
+            };
+            panel.Controls.Add(lblStat);
+            yPos += 30;
+        }
+    }
+
+    private static void CreateOverdueReport(Panel panel, List<TaskItem> tasks, int yPos)
+    {
+        var lblTitle = new Label
+        {
+            Text = "⚠️ Overdue Tasks Report",
+            Font = new Font("Segoe UI", 16, FontStyle.Bold),
+            Location = new Point(20, yPos),
+            Size = new Size(300, 30),
+            ForeColor = Color.FromArgb(231, 76, 60)
+        };
+        panel.Controls.Add(lblTitle);
+        yPos += 40;
+
+        var overdueTasks = tasks.Where(t => t.Status != TaskStatus.Completed &&
+            t.DueDate.HasValue && t.DueDate < DateTime.Now).ToList();
+
+        if (!overdueTasks.Any())
+        {
+            var lblNoOverdue = new Label
+            {
+                Text = "🎉 Great! No overdue tasks found.",
+                Font = new Font("Segoe UI", 12),
+                Location = new Point(40, yPos),
+                Size = new Size(300, 25),
+                ForeColor = Color.FromArgb(46, 204, 113)
+            };
+            panel.Controls.Add(lblNoOverdue);
+            return;
+        }
+
+        foreach (var task in overdueTasks.OrderBy(t => t.DueDate))
+        {
+            var daysPastDue = (DateTime.Now - task.DueDate!.Value).Days;
+            var lblTask = new Label
+            {
+                Text = $"• {task.Title} - {daysPastDue} day(s) overdue",
+                Font = new Font("Segoe UI", 11),
+                Location = new Point(40, yPos),
+                Size = new Size(500, 25),
+                ForeColor = Color.FromArgb(231, 76, 60)
+            };
+            panel.Controls.Add(lblTask);
+            yPos += 25;
+        }
+    }
+
+    private static void ExportReport()
+    {
+        MessageBox.Show("Export functionality will be implemented in the next version.",
+            "Export Report", MessageBoxButtons.OK, MessageBoxIcon.Information);
+    }
+
+    private void CreateSearchContent()
+    {
+        // Header
+        var lblTitle = new Label
+        {
+            Text = "Search Tasks",
+            Font = new Font("Segoe UI", 20, FontStyle.Bold),
+            ForeColor = Color.FromArgb(44, 62, 80),
+            Location = new Point(20, 20),
+            Size = new Size(200, 30)
+        };
+
+        // Search Panel
+        var searchPanel = new Panel
+        {
+            Location = new Point(20, 60),
+            Size = new Size(Math.Max(600, searchContent.Width - 40), 80),
+            BackColor = Color.White,
+            BorderStyle = BorderStyle.FixedSingle
+        };
+
+        var lblSearch = new Label
+        {
+            Text = "Search Term:",
+            Font = new Font("Segoe UI", 12, FontStyle.Bold),
+            Location = new Point(10, 15),
+            Size = new Size(100, 25)
+        };
+
+        var txtSearch = new TextBox
+        {
+            Location = new Point(120, 15),
+            Size = new Size(200, 25),
+            Font = new Font("Segoe UI", 11),
+            PlaceholderText = "Enter task title or description..."
+        };
+
+        var btnSearchTasks = new Button
+        {
+            Text = "🔍 Search",
+            Location = new Point(340, 15),
+            Size = new Size(100, 30),
+            BackColor = Color.FromArgb(52, 152, 219),
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Font = new Font("Segoe UI", 10, FontStyle.Bold)
+        };
+        btnSearchTasks.FlatAppearance.BorderSize = 0;
+
+        var btnClear = new Button
+        {
+            Text = "🗑️ Clear",
+            Location = new Point(450, 15),
+            Size = new Size(80, 30),
+            BackColor = Color.FromArgb(149, 165, 166),
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Font = new Font("Segoe UI", 10, FontStyle.Bold)
+        };
+        btnClear.FlatAppearance.BorderSize = 0;
+
+        searchPanel.Controls.Add(lblSearch);
+        searchPanel.Controls.Add(txtSearch);
+        searchPanel.Controls.Add(btnSearchTasks);
+        searchPanel.Controls.Add(btnClear);
+
+        // Results Panel
+        var resultsPanel = new Panel
+        {
+            Location = new Point(20, 160),
+            Size = new Size(Math.Max(600, searchContent.Width - 40), Math.Max(400, searchContent.Height - 180)),
+            BackColor = Color.White,
+            BorderStyle = BorderStyle.FixedSingle,
+            AutoScroll = true
+        };
+
+        var lblInstructions = new Label
+        {
+            Text = "Enter a search term and click 'Search' to find tasks.",
+            Font = new Font("Segoe UI", 12),
+            ForeColor = Color.Gray,
+            Location = new Point(20, 20),
+            Size = new Size(400, 30)
+        };
+        resultsPanel.Controls.Add(lblInstructions);
+
+        // Event handlers
+        btnSearchTasks.Click += async (s, e) => await SearchTasks(txtSearch.Text, resultsPanel);
+        btnClear.Click += (s, e) =>
+        {
+            txtSearch.Clear();
+            resultsPanel.Controls.Clear();
+            resultsPanel.Controls.Add(lblInstructions);
+        };
+
+        txtSearch.KeyPress += async (s, e) =>
+        {
+            if (e.KeyChar == (char)Keys.Enter)
+            {
+                await SearchTasks(txtSearch.Text, resultsPanel);
+            }
+        };
+
+        searchContent.Controls.Add(lblTitle);
+        searchContent.Controls.Add(searchPanel);
+        searchContent.Controls.Add(resultsPanel);
+    }
+
+    private async System.Threading.Tasks.Task SearchTasks(string searchTerm, Panel resultsPanel)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(searchTerm))
+            {
+                MessageBox.Show("Please enter a search term.", "Search", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            resultsPanel.Controls.Clear();
+            var loadingLabel = new Label
+            {
+                Text = "Searching tasks...",
+                Font = new Font("Segoe UI", 12),
+                ForeColor = Color.Gray,
+                Location = new Point(20, 20),
+                Size = new Size(200, 30)
+            };
+            resultsPanel.Controls.Add(loadingLabel);
+
+            var userTasks = await _taskService.GetUserTasksAsync(SessionManager.Instance.UserId);
+            var searchResults = userTasks.Where(t =>
+                (t.Title?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (t.Description?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false)
+            ).ToList();
+
+            resultsPanel.Controls.Clear();
+
+            if (!searchResults.Any())
+            {
+                var noResultsLabel = new Label
+                {
+                    Text = $"No tasks found matching '{searchTerm}'.",
+                    Font = new Font("Segoe UI", 12),
+                    ForeColor = Color.Gray,
+                    Location = new Point(20, 20),
+                    Size = new Size(400, 30)
+                };
+                resultsPanel.Controls.Add(noResultsLabel);
+                return;
+            }
+
+            var resultCountLabel = new Label
+            {
+                Text = $"Found {searchResults.Count} task(s) matching '{searchTerm}':",
+                Font = new Font("Segoe UI", 12, FontStyle.Bold),
+                ForeColor = Color.FromArgb(44, 62, 80),
+                Location = new Point(20, 10),
+                Size = new Size(400, 25)
+            };
+            resultsPanel.Controls.Add(resultCountLabel);
+
+            int yPos = 45;
+            foreach (var task in searchResults.OrderBy(t => t.DueDate))
+            {
+                var taskCard = CreateTaskCard(task, yPos);
+                resultsPanel.Controls.Add(taskCard);
+                yPos += taskCard.Height + 10;
+            }
+        }
+        catch (Exception ex)
+        {
+            resultsPanel.Controls.Clear();
+            var errorLabel = new Label
+            {
+                Text = $"Error searching tasks: {ex.Message}",
+                Font = new Font("Segoe UI", 12),
+                ForeColor = Color.Red,
+                Location = new Point(20, 20),
+                Size = new Size(400, 60)
+            };
+            resultsPanel.Controls.Add(errorLabel);
+        }
+    }
+
+    private void ShowContent(string contentType)
+    {
+        // Hide all content panels
+        dashboardContent.Visible = false;
+        tasksContent.Visible = false;
+        addTaskContent.Visible = false;
+        reportsContent.Visible = false;
+        searchContent.Visible = false;
+
+        // Reset navigation buttons
+        foreach (Control control in sidePanel.Controls)
+        {
+            if (control is Button btn)
+            {
+                btn.BackColor = Color.Transparent;
+                btn.ForeColor = Color.FromArgb(189, 195, 199);
+            }
+        }
+
+        // Show selected content and highlight nav button
+        switch (contentType.ToLower())
+        {
+            case "dashboard":
+                dashboardContent.Visible = true;
+                SelectNavButton(btnDashboard);
+                _ = LoadDashboard(); // Fire and forget for UI responsiveness
+                break;
+            case "tasks":
+                tasksContent.Visible = true;
+                SelectNavButton(btnTasks);
+                RefreshTasksLayout();
+                break;
+            case "addtask":
+                addTaskContent.Visible = true;
+                SelectNavButton(btnAddTask);
+                break;
+            case "reports":
+                reportsContent.Visible = true;
+                SelectNavButton(btnReports);
+                break;
+            case "search":
+                searchContent.Visible = true;
+                SelectNavButton(btnSearch);
+                RefreshSearchLayout();
+                break;
+        }
+    }
+
+    private async System.Threading.Tasks.Task LoadDashboard()
+    {
+        // Refresh dashboard data
+        if (statsPanel != null)
+        {
+            statsPanel.Controls.Clear();
+            await CreateStatsCards();
+        }
+    }
+
+    private void ApplyModernStyling()
+    {
+        // Add subtle shadows and rounded corners effect
+        this.Paint += (s, e) =>
+        {
+            // Draw subtle shadow for panels
+            var shadowColor = Color.FromArgb(30, 0, 0, 0);
+            using (var brush = new SolidBrush(shadowColor))
+            {
+                // Side panel shadow
+                var shadowRect = new Rectangle(sidePanel.Width, 0, 5, this.Height);
+                e.Graphics.FillRectangle(brush, shadowRect);
+            }
+        };
+    }
+
+    private void BtnLogout_Click(object? sender, EventArgs e)
+    {
+        var result = MessageBox.Show("Are you sure you want to logout?", "Confirm Logout",
+            MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+        if (result == DialogResult.Yes)
+        {
+            SessionManager.Instance.Logout();
+            this.Close();
+        }
+    }
+
+    protected override void OnFormClosed(FormClosedEventArgs e)
+    {
+        System.Windows.Forms.Application.Exit();
+        base.OnFormClosed(e);
+    }
+}

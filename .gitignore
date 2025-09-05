@@ -36,6 +36,10 @@ packages/
 .env.local
 .env.*.local
 
+# ignore .github folder with workflows if present
+.github/
+.github/**
+
 
 
 # Except build/, allow NuGet's Build folder to be committed if present

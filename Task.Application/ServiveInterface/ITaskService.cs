@@ -12,4 +12,15 @@ public interface ITaskService
     void UpdateTask(TaskItem task);
     void DeleteTask(Guid id);
 
+
+    // Searching Functionality
+
+    IEnumerable<TaskItem>? SearchTasks(string searchTerm);
+    IEnumerable<TaskItem>? SearchTasksByTitle(string title);
+    IEnumerable<TaskItem>? SearchTasksByStatus(Domain.Entities.TaskStatus status);
+    IEnumerable<TaskItem>? SearchTasksByPriority(TaskPriority priority);
+    IEnumerable<TaskItem>? SearchTasksByCategory(Guid categoryId);
+    IEnumerable<TaskItem>? SearchTasksByDateRange(DateTime startDate, DateTime endDate);
+
+
 }

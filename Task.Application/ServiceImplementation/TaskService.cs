@@ -74,4 +74,50 @@ public class TaskService(ITaskRepository taskRepository) : ITaskService
             throw new ArgumentException("Task description cannot exceed 500 characters");
         }
     }
+
+    // Searching Functionality
+
+    public IEnumerable<TaskItem>? SearchTasks(string searchTerm)
+    {
+        ValidateSearchTerm(searchTerm);
+        return taskRepository.Search(searchTerm);
+    }
+
+    public IEnumerable<TaskItem>? SearchTasksByTitle(string title)
+    {
+        ValidateSearchTerm(title);
+        return taskRepository.SearchByTitle(title);
+    }
+
+    public IEnumerable<TaskItem>? SearchTasksByStatus(Domain.Entities.TaskStatus status)
+    {
+        return taskRepository.SearchByStatus(status);
+    }
+
+    public IEnumerable<TaskItem>? SearchTasksByPriority(TaskPriority priority)
+    {
+        return taskRepository.SearchByPriority(priority);
+    }
+
+    public IEnumerable<TaskItem>? SearchTasksByCategory(Guid categoryId)
+    {
+        return taskRepository.SearchByCategory(categoryId);
+    }
+
+    public IEnumerable<TaskItem>? SearchTasksByDateRange(DateTime startDate, DateTime endDate)
+    {
+        if (startDate > endDate)
+            throw new ArgumentException("Start date cannot be after end date");
+
+        return taskRepository.SearchByDateRange(startDate, endDate);
+    }
+
+    public static void ValidateSearchTerm(string searchTerm)
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+            throw new ArgumentException("Search term cannot be empty");
+
+        if (searchTerm.Length < 2)
+            throw new ArgumentException("Search term must be at least 2 characters");
+    }
 }

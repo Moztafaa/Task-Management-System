@@ -49,11 +49,13 @@ static class Program
         // Repositories
         services.AddScoped<ITaskRepository, TaskRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<ICategoryRepository, CategoryRepository>();
 
         // Services
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ITaskService, TaskService>();
         services.AddScoped<IReportService, ReportService>();
+        services.AddScoped<ICategoryService, CategoryService>();
 
         // Forms
         services.AddTransient<LoginForm>();
@@ -62,5 +64,6 @@ static class Program
         services.AddTransient<MainForm>();
         services.AddTransient<Task.WinFormsPresentation.Forms.TestForm>();
         services.AddTransient<LauncherForm>();
+        services.AddTransient<CategoryManagementForm>();
     }
 }

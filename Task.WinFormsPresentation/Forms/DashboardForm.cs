@@ -1,7 +1,9 @@
 using System;
+using System.ComponentModel;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
+using Microsoft.Extensions.DependencyInjection;
 using Task.Application.ServiveInterface;
 using Task.Application.Services;
 using Task.Domain.Entities;
@@ -10,11 +12,13 @@ using TaskPriority = Task.Domain.Entities.TaskPriority;
 
 namespace Task.WinFormsPresentation.Forms;
 
+[DesignerCategory("")]
 public partial class DashboardForm : Form
 {
     private readonly ITaskService _taskService;
     private readonly IAuthService _authService;
     private readonly IReportService _reportService;
+    private readonly ICategoryService _categoryService;
 
     // Main Layout
     private Panel topPanel = null!;
@@ -48,11 +52,12 @@ public partial class DashboardForm : Form
     // Current user
     private User? _currentUser;
 
-    public DashboardForm(ITaskService taskService, IAuthService authService, IReportService reportService)
+    public DashboardForm(ITaskService taskService, IAuthService authService, IReportService reportService, ICategoryService categoryService)
     {
         _taskService = taskService;
         _authService = authService;
         _reportService = reportService;
+        _categoryService = categoryService;
         _currentUser = SessionManager.Instance.CurrentUser;
 
         InitializeComponent();
@@ -119,9 +124,9 @@ public partial class DashboardForm : Form
         if (recentTasksPanel != null && quickActionsPanel != null)
         {
             var panelWidth = (contentPanel.Width - 60) / 2;
-            recentTasksPanel.Size = new Size(panelWidth, 400);
+            recentTasksPanel.Size = new Size(panelWidth, 450);
             quickActionsPanel.Location = new Point(panelWidth + 10, 200);
-            quickActionsPanel.Size = new Size(panelWidth, 400);
+            quickActionsPanel.Size = new Size(panelWidth, 450);
         }
     }
 
@@ -278,6 +283,10 @@ public partial class DashboardForm : Form
         btnReports = CreateNavButton("📊 Reports", 280);
         btnSearch = CreateNavButton("🔍 Search", 340);
 
+        // Categories button
+        var btnCategories = CreateNavButton("📂 Categories", 400);
+        btnCategories.Click += BtnCategories_Click;
+
         // Select dashboard by default
         SelectNavButton(btnDashboard);
 
@@ -294,6 +303,7 @@ public partial class DashboardForm : Form
         sidePanel.Controls.Add(btnAddTask);
         sidePanel.Controls.Add(btnReports);
         sidePanel.Controls.Add(btnSearch);
+        sidePanel.Controls.Add(btnCategories);
     }
 
     private Button CreateNavButton(string text, int y)
@@ -452,10 +462,15 @@ public partial class DashboardForm : Form
             var inProgressTasks = tasks.Count(t => t.Status == TaskStatus.InProgress);
             var completedTasks = tasks.Count(t => t.Status == TaskStatus.Completed);
 
+            // Get category count
+            var categories = _categoryService.GetAllCategories();
+            var totalCategories = categories?.Count() ?? 0;
+
             CreateStatCard("Total Tasks", totalTasks.ToString(), Color.FromArgb(52, 152, 219), 0);
-            CreateStatCard("Pending", pendingTasks.ToString(), Color.FromArgb(230, 126, 34), 250);
-            CreateStatCard("In Progress", inProgressTasks.ToString(), Color.FromArgb(241, 196, 15), 500);
-            CreateStatCard("Completed", completedTasks.ToString(), Color.FromArgb(46, 204, 113), 750);
+            CreateStatCard("Pending", pendingTasks.ToString(), Color.FromArgb(230, 126, 34), 200);
+            CreateStatCard("In Progress", inProgressTasks.ToString(), Color.FromArgb(241, 196, 15), 400);
+            CreateStatCard("Completed", completedTasks.ToString(), Color.FromArgb(46, 204, 113), 600);
+            CreateStatCard("Categories", totalCategories.ToString(), Color.FromArgb(142, 68, 173), 800);
         }
         catch (Exception ex)
         {
@@ -468,10 +483,17 @@ public partial class DashboardForm : Form
         var card = new Panel
         {
             Location = new Point(x, 0),
-            Size = new Size(220, 120),
+            Size = new Size(180, 120),
             BackColor = color,
-            BorderStyle = BorderStyle.None
+            BorderStyle = BorderStyle.None,
+            Cursor = title == "Categories" ? Cursors.Hand : Cursors.Default
         };
+
+        // Add click event for Categories card
+        if (title == "Categories")
+        {
+            card.Click += (s, e) => BtnCategories_Click(s, e);
+        }
 
         var lblValue = new Label
         {
@@ -479,8 +501,9 @@ public partial class DashboardForm : Form
             Font = new Font("Segoe UI", 28, FontStyle.Bold),
             ForeColor = Color.White,
             Location = new Point(20, 20),
-            Size = new Size(180, 40),
-            TextAlign = ContentAlignment.MiddleLeft
+            Size = new Size(140, 40),
+            TextAlign = ContentAlignment.MiddleLeft,
+            Cursor = title == "Categories" ? Cursors.Hand : Cursors.Default
         };
 
         var lblTitle = new Label
@@ -489,9 +512,17 @@ public partial class DashboardForm : Form
             Font = new Font("Segoe UI", 12, FontStyle.Regular),
             ForeColor = Color.White,
             Location = new Point(20, 70),
-            Size = new Size(180, 20),
-            TextAlign = ContentAlignment.MiddleLeft
+            Size = new Size(140, 20),
+            TextAlign = ContentAlignment.MiddleLeft,
+            Cursor = title == "Categories" ? Cursors.Hand : Cursors.Default
         };
+
+        // Add click events for labels too when it's Categories card
+        if (title == "Categories")
+        {
+            lblValue.Click += (s, e) => BtnCategories_Click(s, e);
+            lblTitle.Click += (s, e) => BtnCategories_Click(s, e);
+        }
 
         card.Controls.Add(lblValue);
         card.Controls.Add(lblTitle);
@@ -552,11 +583,15 @@ public partial class DashboardForm : Form
         var btnSearchAction = CreateActionButton("🔍 Search Tasks", 240, Color.FromArgb(230, 126, 34));
         btnSearchAction.Click += (s, e) => ShowContent("search");
 
+        var btnManageCategories = CreateActionButton("📂 Manage Categories", 300, Color.FromArgb(142, 68, 173));
+        btnManageCategories.Click += BtnCategories_Click;
+
         quickActionsPanel.Controls.Add(lblTitle);
         quickActionsPanel.Controls.Add(btnQuickAdd);
         quickActionsPanel.Controls.Add(btnViewAll);
         quickActionsPanel.Controls.Add(btnGenReport);
         quickActionsPanel.Controls.Add(btnSearchAction);
+        quickActionsPanel.Controls.Add(btnManageCategories);
     }
 
     private Button CreateActionButton(string text, int y, Color color)
@@ -577,28 +612,28 @@ public partial class DashboardForm : Form
 
     private void CreateTasksContent()
     {
-        // Header
+        // Header with more space
         var lblTitle = new Label
         {
             Text = "My Tasks",
             Font = new Font("Segoe UI", 20, FontStyle.Bold),
             ForeColor = Color.FromArgb(44, 62, 80),
             Location = new Point(20, 20),
-            Size = new Size(200, 30)
+            Size = new Size(200, 35) // Increased height
         };
 
-        // Filter Panel
+        // Filter Panel - increased height and moved down more for better spacing
         var filterPanel = new Panel
         {
-            Location = new Point(20, 60),
-            Size = new Size(Math.Max(600, tasksContent.Width - 40), 60),
+            Location = new Point(20, 70),
+            Size = new Size(Math.Max(600, tasksContent.Width - 40), 80), // Increased height from 70 to 80
             BackColor = Color.White,
             BorderStyle = BorderStyle.FixedSingle
         };
 
         var cmbStatus = new ComboBox
         {
-            Location = new Point(10, 15),
+            Location = new Point(10, 25), // Moved down from 20 to 25
             Size = new Size(120, 30),
             DropDownStyle = ComboBoxStyle.DropDownList
         };
@@ -607,17 +642,25 @@ public partial class DashboardForm : Form
 
         var cmbPriority = new ComboBox
         {
-            Location = new Point(150, 15),
+            Location = new Point(150, 25), // Moved down from 20 to 25
             Size = new Size(120, 30),
             DropDownStyle = ComboBoxStyle.DropDownList
         };
         cmbPriority.Items.AddRange(new object[] { "All", "Low", "Medium", "High" });
         cmbPriority.SelectedIndex = 0;
 
+        var cmbCategoryFilter = new ComboBox
+        {
+            Location = new Point(290, 25), // Moved down from 20 to 25
+            Size = new Size(130, 30),
+            DropDownStyle = ComboBoxStyle.DropDownList
+        };
+        LoadCategoryFilterComboBox(cmbCategoryFilter);
+
         var btnRefresh = new Button
         {
             Text = "🔄 Refresh",
-            Location = new Point(290, 15),
+            Location = new Point(440, 25), // Moved down from 20 to 25
             Size = new Size(100, 30),
             BackColor = Color.FromArgb(52, 152, 219),
             ForeColor = Color.White,
@@ -628,13 +671,14 @@ public partial class DashboardForm : Form
 
         filterPanel.Controls.Add(cmbStatus);
         filterPanel.Controls.Add(cmbPriority);
+        filterPanel.Controls.Add(cmbCategoryFilter);
         filterPanel.Controls.Add(btnRefresh);
 
-        // Tasks List Panel
+        // Tasks List Panel - adjusted position for increased filter panel height
         var tasksListPanel = new Panel
         {
-            Location = new Point(20, 140),
-            Size = new Size(Math.Max(600, tasksContent.Width - 40), Math.Max(400, tasksContent.Height - 160)),
+            Location = new Point(20, 165), // Moved down from 155 to 165
+            Size = new Size(Math.Max(600, tasksContent.Width - 40), Math.Max(400, tasksContent.Height - 185)), // Adjusted height calculation
             BackColor = Color.White,
             BorderStyle = BorderStyle.FixedSingle,
             AutoScroll = true
@@ -655,11 +699,48 @@ public partial class DashboardForm : Form
         tasksContent.Controls.Add(tasksListPanel);
 
         // Load tasks asynchronously
-        btnRefresh.Click += async (s, e) => await LoadUserTasks(tasksListPanel, cmbStatus.Text, cmbPriority.Text);
-        _ = LoadUserTasks(tasksListPanel, "All", "All"); // Initial load
+        btnRefresh.Click += async (s, e) => await LoadUserTasks(tasksListPanel, cmbStatus.Text, cmbPriority.Text, GetCategoryFilterValue(cmbCategoryFilter));
+        _ = LoadUserTasks(tasksListPanel, "All", "All", null); // Initial load
     }
 
-    private async System.Threading.Tasks.Task LoadUserTasks(Panel container, string statusFilter, string priorityFilter)
+    private void LoadCategoryFilterComboBox(ComboBox cmbCategoryFilter)
+    {
+        try
+        {
+            var categories = _categoryService.GetAllCategories();
+            cmbCategoryFilter.Items.Clear();
+            cmbCategoryFilter.Items.Add("All Categories");
+            cmbCategoryFilter.Items.Add("No Category");
+
+            if (categories != null)
+            {
+                foreach (var category in categories)
+                {
+                    cmbCategoryFilter.Items.Add(new CategoryItem { Id = category.Id, Name = category.Name });
+                }
+            }
+
+            cmbCategoryFilter.SelectedIndex = 0; // Default to "All Categories"
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error loading categories: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            cmbCategoryFilter.Items.Clear();
+            cmbCategoryFilter.Items.Add("All Categories");
+            cmbCategoryFilter.SelectedIndex = 0;
+        }
+    }
+
+    private static Guid? GetCategoryFilterValue(ComboBox cmbCategoryFilter)
+    {
+        if (cmbCategoryFilter.SelectedItem is CategoryItem categoryItem)
+        {
+            return categoryItem.Id;
+        }
+        return cmbCategoryFilter.SelectedIndex == 1 ? Guid.Empty : null; // Guid.Empty represents "No Category"
+    }
+
+    private async System.Threading.Tasks.Task LoadUserTasks(Panel container, string statusFilter, string priorityFilter, Guid? categoryFilter)
     {
         try
         {
@@ -689,6 +770,19 @@ public partial class DashboardForm : Form
             {
                 var priority = Enum.Parse<TaskPriority>(priorityFilter);
                 tasks = tasks.Where(t => t.Priority == priority).ToList();
+            }
+
+            // Apply category filter
+            if (categoryFilter.HasValue)
+            {
+                if (categoryFilter.Value == Guid.Empty) // "No Category" selected
+                {
+                    tasks = tasks.Where(t => !t.CategoryId.HasValue).ToList();
+                }
+                else // Specific category selected
+                {
+                    tasks = tasks.Where(t => t.CategoryId == categoryFilter.Value).ToList();
+                }
             }
 
             container.Controls.Clear();
@@ -736,16 +830,16 @@ public partial class DashboardForm : Form
         var card = new Panel
         {
             Location = new Point(10, yPos),
-            Size = new Size(cardWidth, 100),
+            Size = new Size(cardWidth, 110), // Increased height from 100 to 110
             BackColor = Color.White,
             BorderStyle = BorderStyle.FixedSingle
         };
 
-        // Priority color indicator
+        // Priority color indicator - adjusted height for taller card
         var priorityIndicator = new Panel
         {
             Location = new Point(0, 0),
-            Size = new Size(5, card.Height),
+            Size = new Size(5, card.Height), // Height will now be 110
             BackColor = GetPriorityColor(task.Priority)
         };
 
@@ -775,8 +869,21 @@ public partial class DashboardForm : Form
             Text = task.DueDate?.ToString("MMM dd, yyyy") ?? "No due date",
             Font = new Font("Segoe UI", 9),
             Location = new Point(15, 60),
-            Size = new Size(200, 20),
+            Size = new Size(150, 20),
             ForeColor = task.DueDate < DateTime.Now ? Color.Red : Color.FromArgb(52, 152, 219)
+        };
+
+        // Category display - moved down to better align with other elements
+        var lblCategory = new Label
+        {
+            Text = GetCategoryDisplayName(task.CategoryId),
+            Font = new Font("Segoe UI", 9),
+            Location = new Point(170, 75), // Moved down from 60 to 75
+            Size = new Size(120, 20),
+            ForeColor = Color.FromArgb(142, 68, 173),
+            BackColor = Color.FromArgb(245, 245, 245),
+            TextAlign = ContentAlignment.MiddleCenter,
+            BorderStyle = BorderStyle.FixedSingle
         };
 
         // Status dropdown for quick edit
@@ -803,6 +910,17 @@ public partial class DashboardForm : Form
         cmbPriority.SelectedItem = task.Priority.ToString();
         cmbPriority.SelectedIndexChanged += async (s, e) => await UpdateTaskPriority(task, cmbPriority.SelectedItem?.ToString() ?? "");
 
+        // Category dropdown for quick edit - moved down to avoid overlap with priority
+        var cmbTaskCategory = new ComboBox
+        {
+            Location = new Point(cardWidth - 240, 70), // Moved down from 45 to 70
+            Size = new Size(110, 25),
+            DropDownStyle = ComboBoxStyle.DropDownList,
+            Font = new Font("Segoe UI", 9)
+        };
+        LoadTaskCategoryComboBox(cmbTaskCategory, task.CategoryId);
+        cmbTaskCategory.SelectedIndexChanged += async (s, e) => await UpdateTaskCategory(task, cmbTaskCategory);
+
         // Delete button
         var btnDelete = new Button
         {
@@ -821,11 +939,230 @@ public partial class DashboardForm : Form
         card.Controls.Add(lblTitle);
         card.Controls.Add(lblDescription);
         card.Controls.Add(lblDueDate);
+        card.Controls.Add(lblCategory);
         card.Controls.Add(cmbStatus);
         card.Controls.Add(cmbPriority);
+        card.Controls.Add(cmbTaskCategory);
         card.Controls.Add(btnDelete);
 
         return card;
+    }
+
+    private string GetCategoryDisplayName(Guid? categoryId)
+    {
+        if (!categoryId.HasValue)
+            return "No Category";
+
+        try
+        {
+            var category = _categoryService.GetCategoryById(categoryId.Value);
+            return category?.Name ?? "Unknown Category";
+        }
+        catch
+        {
+            return "Unknown Category";
+        }
+    }
+
+    private void LoadTaskCategoryComboBox(ComboBox cmbTaskCategory, Guid? currentCategoryId)
+    {
+        try
+        {
+            var categories = _categoryService.GetAllCategories();
+            cmbTaskCategory.Items.Clear();
+            cmbTaskCategory.Items.Add("No Category");
+
+            var selectedIndex = 0;
+
+            if (categories != null)
+            {
+                var index = 1;
+                foreach (var category in categories)
+                {
+                    cmbTaskCategory.Items.Add(new CategoryItem { Id = category.Id, Name = category.Name });
+                    if (currentCategoryId.HasValue && category.Id == currentCategoryId.Value)
+                    {
+                        selectedIndex = index;
+                    }
+                    index++;
+                }
+            }
+
+            cmbTaskCategory.SelectedIndex = selectedIndex;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error loading categories: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            cmbTaskCategory.Items.Clear();
+            cmbTaskCategory.Items.Add("No Category");
+            cmbTaskCategory.SelectedIndex = 0;
+        }
+    }
+
+    private async System.Threading.Tasks.Task UpdateTaskCategory(TaskItem task, ComboBox cmbTaskCategory)
+    {
+        try
+        {
+            Guid? newCategoryId = null;
+            if (cmbTaskCategory.SelectedItem is CategoryItem categoryItem)
+            {
+                newCategoryId = categoryItem.Id;
+            }
+
+            task.CategoryId = newCategoryId;
+            await _taskService.UpdateTaskAsync(task);
+
+            // Refresh the current view
+            RefreshCurrentTaskView();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error updating task category: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void BtnCategories_Click(object? sender, EventArgs e)
+    {
+        try
+        {
+            var categoryForm = Program.ServiceProvider.GetRequiredService<CategoryManagementForm>();
+            categoryForm.ShowDialog(this);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error opening category management: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void ShowQuickCategoryDialog(ComboBox cmbCategory)
+    {
+        try
+        {
+            // Simple input dialog for quick category creation
+            var inputDialog = new QuickCategoryInputDialog();
+            var result = inputDialog.ShowDialog(this);
+
+            if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(inputDialog.CategoryName))
+            {
+                var newCategory = new Category
+                {
+                    Id = Guid.NewGuid(),
+                    Name = inputDialog.CategoryName.Trim()
+                };
+
+                _categoryService.AddCategory(newCategory);
+
+                // Refresh the combobox
+                LoadCategoriesIntoComboBox(cmbCategory);
+
+                // Select the newly created category
+                foreach (var item in cmbCategory.Items)
+                {
+                    if (item is CategoryItem categoryItem && categoryItem.Name == newCategory.Name)
+                    {
+                        cmbCategory.SelectedItem = item;
+                        break;
+                    }
+                }
+
+                MessageBox.Show("Category added successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error adding category: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    // Quick input dialog for category creation
+    private sealed class QuickCategoryInputDialog : Form
+    {
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public string CategoryName { get; private set; } = string.Empty;
+
+        public QuickCategoryInputDialog()
+        {
+            InitializeComponent();
+        }
+
+        private void InitializeComponent()
+        {
+            this.Size = new Size(350, 150);
+            this.Text = "Add New Category";
+            this.StartPosition = FormStartPosition.CenterParent;
+            this.FormBorderStyle = FormBorderStyle.FixedDialog;
+            this.MaximizeBox = false;
+            this.MinimizeBox = false;
+            this.BackColor = Color.White;
+
+            var lblPrompt = new Label
+            {
+                Text = "Category Name:",
+                Location = new Point(20, 20),
+                Size = new Size(100, 25),
+                Font = new Font("Segoe UI", 12)
+            };
+
+            var txtCategoryName = new TextBox
+            {
+                Location = new Point(20, 50),
+                Size = new Size(300, 30),
+                Font = new Font("Segoe UI", 11)
+            };
+
+            var btnOK = new Button
+            {
+                Text = "OK",
+                Location = new Point(160, 90),
+                Size = new Size(70, 30),
+                BackColor = Color.FromArgb(46, 204, 113),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold)
+            };
+            btnOK.FlatAppearance.BorderSize = 0;
+
+            var btnCancel = new Button
+            {
+                Text = "Cancel",
+                Location = new Point(240, 90),
+                Size = new Size(70, 30),
+                BackColor = Color.FromArgb(149, 165, 166),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold)
+            };
+            btnCancel.FlatAppearance.BorderSize = 0;
+
+            btnOK.Click += (s, e) =>
+            {
+                if (!string.IsNullOrWhiteSpace(txtCategoryName.Text))
+                {
+                    CategoryName = txtCategoryName.Text.Trim();
+                    this.DialogResult = DialogResult.OK;
+                    this.Close();
+                }
+                else
+                {
+                    MessageBox.Show("Please enter a category name.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    txtCategoryName.Focus();
+                }
+            };
+
+            btnCancel.Click += (s, e) =>
+            {
+                this.DialogResult = DialogResult.Cancel;
+                this.Close();
+            };
+
+            this.Controls.Add(lblPrompt);
+            this.Controls.Add(txtCategoryName);
+            this.Controls.Add(btnOK);
+            this.Controls.Add(btnCancel);
+
+            txtCategoryName.Focus();
+        }
     }
 
     private async System.Threading.Tasks.Task UpdateTaskStatus(TaskItem task, string newStatus)
@@ -911,7 +1248,7 @@ public partial class DashboardForm : Form
             {
                 if (control is Panel panel && panel.BorderStyle == BorderStyle.FixedSingle && panel.AutoScroll)
                 {
-                    _ = LoadUserTasks(panel, "All", "All");
+                    _ = LoadUserTasks(panel, "All", "All", null);
                     break;
                 }
             }
@@ -931,21 +1268,21 @@ public partial class DashboardForm : Form
 
     private void CreateAddTaskContent()
     {
-        // Header
+        // Header with more space
         var lblTitle = new Label
         {
             Text = "Add New Task",
             Font = new Font("Segoe UI", 20, FontStyle.Bold),
             ForeColor = Color.FromArgb(44, 62, 80),
             Location = new Point(50, 30),
-            Size = new Size(200, 30)
+            Size = new Size(250, 35) // Increased height from 30 to 35
         };
 
-        // Form Panel
+        // Form Panel - adjusted height for the more compact layout
         var formPanel = new Panel
         {
             Location = new Point(50, 80),
-            Size = new Size(600, 500),
+            Size = new Size(600, 420), // Reduced from 520 to 420
             BackColor = Color.White,
             BorderStyle = BorderStyle.FixedSingle
         };
@@ -967,7 +1304,7 @@ public partial class DashboardForm : Form
             BorderStyle = BorderStyle.FixedSingle
         };
 
-        // Description
+        // Description - reduced height to make more room
         var lblDescription = new Label
         {
             Text = "Description",
@@ -979,25 +1316,25 @@ public partial class DashboardForm : Form
         var txtDescription = new TextBox
         {
             Location = new Point(30, 125),
-            Size = new Size(540, 80),
+            Size = new Size(540, 60), // Reduced from 80 to 60
             Font = new Font("Segoe UI", 11),
             BorderStyle = BorderStyle.FixedSingle,
             Multiline = true,
             ScrollBars = ScrollBars.Vertical
         };
 
-        // Priority
+        // Priority - moved up
         var lblPriority = new Label
         {
             Text = "Priority *",
             Font = new Font("Segoe UI", 12, FontStyle.Bold),
-            Location = new Point(30, 220),
+            Location = new Point(30, 200), // Moved up from 220 to 200
             Size = new Size(100, 25)
         };
 
         var cmbPriority = new ComboBox
         {
-            Location = new Point(30, 245),
+            Location = new Point(30, 225), // Moved up from 245 to 225
             Size = new Size(150, 30),
             DropDownStyle = ComboBoxStyle.DropDownList,
             Font = new Font("Segoe UI", 11)
@@ -1005,18 +1342,53 @@ public partial class DashboardForm : Form
         cmbPriority.Items.AddRange(new object[] { "Low", "Medium", "High" });
         cmbPriority.SelectedIndex = 1; // Default to Medium
 
-        // Due Date
+        // Category - moved to second row, better positioned
+        var lblCategory = new Label
+        {
+            Text = "Category",
+            Font = new Font("Segoe UI", 12, FontStyle.Bold),
+            Location = new Point(200, 200), // Moved left and up
+            Size = new Size(100, 25)
+        };
+
+        var cmbCategory = new ComboBox
+        {
+            Location = new Point(200, 225), // Moved left and up
+            Size = new Size(150, 30), // Made wider for better usability
+            DropDownStyle = ComboBoxStyle.DropDownList,
+            Font = new Font("Segoe UI", 11)
+        };
+
+        // Add Category button (small + button) - positioned right next to category dropdown
+        var btnAddCategory = new Button
+        {
+            Text = "+",
+            Location = new Point(355, 225), // Positioned right after category dropdown
+            Size = new Size(25, 30),
+            BackColor = Color.FromArgb(142, 68, 173),
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Font = new Font("Segoe UI", 12, FontStyle.Bold),
+            Cursor = Cursors.Hand
+        };
+        btnAddCategory.FlatAppearance.BorderSize = 0;
+        btnAddCategory.Click += (s, e) => ShowQuickCategoryDialog(cmbCategory);
+
+        // Load categories
+        LoadCategoriesIntoComboBox(cmbCategory);
+
+        // Due Date - moved up to accommodate the layout changes
         var lblDueDate = new Label
         {
             Text = "Due Date",
             Font = new Font("Segoe UI", 12, FontStyle.Bold),
-            Location = new Point(200, 220),
+            Location = new Point(30, 270), // Moved up from 280 to 270
             Size = new Size(100, 25)
         };
 
         var dtpDueDate = new DateTimePicker
         {
-            Location = new Point(200, 245),
+            Location = new Point(30, 295), // Moved up from 305 to 295
             Size = new Size(200, 30),
             Font = new Font("Segoe UI", 11),
             Format = DateTimePickerFormat.Short,
@@ -1026,18 +1398,18 @@ public partial class DashboardForm : Form
         var chkNoDueDate = new CheckBox
         {
             Text = "No due date",
-            Location = new Point(420, 248),
+            Location = new Point(250, 298), // Moved up from 308 to 298
             Size = new Size(120, 25),
             Font = new Font("Segoe UI", 10)
         };
 
         chkNoDueDate.CheckedChanged += (s, e) => dtpDueDate.Enabled = !chkNoDueDate.Checked;
 
-        // Buttons
+        // Buttons - moved up to fit the new layout
         var btnSave = new Button
         {
             Text = "💾 Save Task",
-            Location = new Point(30, 300),
+            Location = new Point(30, 340), // Moved up from 360 to 340
             Size = new Size(150, 40),
             BackColor = Color.FromArgb(46, 204, 113),
             ForeColor = Color.White,
@@ -1050,7 +1422,7 @@ public partial class DashboardForm : Form
         var btnClear = new Button
         {
             Text = "🗑️ Clear",
-            Location = new Point(200, 300),
+            Location = new Point(200, 340), // Moved up from 360 to 340
             Size = new Size(120, 40),
             BackColor = Color.FromArgb(149, 165, 166),
             ForeColor = Color.White,
@@ -1061,8 +1433,8 @@ public partial class DashboardForm : Form
         btnClear.FlatAppearance.BorderSize = 0;
 
         // Event handlers
-        btnSave.Click += async (s, e) => await SaveNewTask(txtTitle, txtDescription, cmbPriority, dtpDueDate, chkNoDueDate);
-        btnClear.Click += (s, e) => ClearAddTaskForm(txtTitle, txtDescription, cmbPriority, dtpDueDate, chkNoDueDate);
+        btnSave.Click += async (s, e) => await SaveNewTask(txtTitle, txtDescription, cmbPriority, cmbCategory, dtpDueDate, chkNoDueDate);
+        btnClear.Click += (s, e) => ClearAddTaskForm(txtTitle, txtDescription, cmbPriority, cmbCategory, dtpDueDate, chkNoDueDate);
 
         formPanel.Controls.Add(lblTaskTitle);
         formPanel.Controls.Add(txtTitle);
@@ -1070,6 +1442,9 @@ public partial class DashboardForm : Form
         formPanel.Controls.Add(txtDescription);
         formPanel.Controls.Add(lblPriority);
         formPanel.Controls.Add(cmbPriority);
+        formPanel.Controls.Add(lblCategory);
+        formPanel.Controls.Add(cmbCategory);
+        formPanel.Controls.Add(btnAddCategory);
         formPanel.Controls.Add(lblDueDate);
         formPanel.Controls.Add(dtpDueDate);
         formPanel.Controls.Add(chkNoDueDate);
@@ -1080,7 +1455,43 @@ public partial class DashboardForm : Form
         addTaskContent.Controls.Add(formPanel);
     }
 
-    private async System.Threading.Tasks.Task SaveNewTask(TextBox txtTitle, TextBox txtDescription, ComboBox cmbPriority, DateTimePicker dtpDueDate, CheckBox chkNoDueDate)
+    private void LoadCategoriesIntoComboBox(ComboBox cmbCategory)
+    {
+        try
+        {
+            var categories = _categoryService.GetAllCategories();
+            cmbCategory.Items.Clear();
+            cmbCategory.Items.Add("No Category");
+
+            if (categories != null)
+            {
+                foreach (var category in categories)
+                {
+                    cmbCategory.Items.Add(new CategoryItem { Id = category.Id, Name = category.Name });
+                }
+            }
+
+            cmbCategory.SelectedIndex = 0; // Default to "No Category"
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error loading categories: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            cmbCategory.Items.Clear();
+            cmbCategory.Items.Add("No Category");
+            cmbCategory.SelectedIndex = 0;
+        }
+    }
+
+    // Helper class for category ComboBox items
+    private class CategoryItem
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+
+        public override string ToString() => Name;
+    }
+
+    private async System.Threading.Tasks.Task SaveNewTask(TextBox txtTitle, TextBox txtDescription, ComboBox cmbPriority, ComboBox cmbCategory, DateTimePicker dtpDueDate, CheckBox chkNoDueDate)
     {
         try
         {
@@ -1091,6 +1502,13 @@ public partial class DashboardForm : Form
                 return;
             }
 
+            // Determine category ID
+            Guid? categoryId = null;
+            if (cmbCategory.SelectedItem is CategoryItem categoryItem)
+            {
+                categoryId = categoryItem.Id;
+            }
+
             var newTask = new TaskItem
             {
                 Id = Guid.NewGuid(),
@@ -1098,6 +1516,7 @@ public partial class DashboardForm : Form
                 Description = string.IsNullOrWhiteSpace(txtDescription.Text) ? null : txtDescription.Text.Trim(),
                 Priority = Enum.Parse<TaskPriority>(cmbPriority.Text),
                 Status = TaskStatus.Pending,
+                CategoryId = categoryId,
                 DueDate = chkNoDueDate.Checked ? null : dtpDueDate.Value,
                 CreatedAt = DateTime.Now,
                 UserId = SessionManager.Instance.UserId
@@ -1107,7 +1526,7 @@ public partial class DashboardForm : Form
 
             MessageBox.Show("Task created successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-            ClearAddTaskForm(txtTitle, txtDescription, cmbPriority, dtpDueDate, chkNoDueDate);
+            ClearAddTaskForm(txtTitle, txtDescription, cmbPriority, cmbCategory, dtpDueDate, chkNoDueDate);
         }
         catch (Exception ex)
         {
@@ -1115,11 +1534,12 @@ public partial class DashboardForm : Form
         }
     }
 
-    private static void ClearAddTaskForm(TextBox txtTitle, TextBox txtDescription, ComboBox cmbPriority, DateTimePicker dtpDueDate, CheckBox chkNoDueDate)
+    private static void ClearAddTaskForm(TextBox txtTitle, TextBox txtDescription, ComboBox cmbPriority, ComboBox cmbCategory, DateTimePicker dtpDueDate, CheckBox chkNoDueDate)
     {
         txtTitle.Clear();
         txtDescription.Clear();
         cmbPriority.SelectedIndex = 1; // Medium
+        cmbCategory.SelectedIndex = 0; // No Category
         dtpDueDate.Value = DateTime.Today;
         chkNoDueDate.Checked = false;
         dtpDueDate.Enabled = true;
@@ -1127,20 +1547,20 @@ public partial class DashboardForm : Form
 
     private void CreateReportsContent()
     {
-        // Header
+        // Header with more space
         var lblTitle = new Label
         {
             Text = "Task Reports",
             Font = new Font("Segoe UI", 20, FontStyle.Bold),
             ForeColor = Color.FromArgb(44, 62, 80),
             Location = new Point(50, 30),
-            Size = new Size(200, 30)
+            Size = new Size(250, 35) // Increased height from 30 to 35
         };
 
-        // Report Options Panel
+        // Report Options Panel - moved down to give more space after title
         var optionsPanel = new Panel
         {
-            Location = new Point(50, 80),
+            Location = new Point(50, 80), // Keeping same position as it was reasonable
             Size = new Size(700, 150),
             BackColor = Color.White,
             BorderStyle = BorderStyle.FixedSingle
@@ -1430,20 +1850,20 @@ public partial class DashboardForm : Form
 
     private void CreateSearchContent()
     {
-        // Header
+        // Header with more space
         var lblTitle = new Label
         {
             Text = "Search Tasks",
             Font = new Font("Segoe UI", 20, FontStyle.Bold),
             ForeColor = Color.FromArgb(44, 62, 80),
             Location = new Point(20, 20),
-            Size = new Size(200, 30)
+            Size = new Size(250, 35) // Increased height from 30 to 35
         };
 
-        // Search Panel
+        // Search Panel - moved down to give more space after title
         var searchPanel = new Panel
         {
-            Location = new Point(20, 60),
+            Location = new Point(20, 70), // Moved down from 60 to 70
             Size = new Size(Math.Max(600, searchContent.Width - 40), 80),
             BackColor = Color.White,
             BorderStyle = BorderStyle.FixedSingle
@@ -1494,11 +1914,11 @@ public partial class DashboardForm : Form
         searchPanel.Controls.Add(btnSearchTasks);
         searchPanel.Controls.Add(btnClear);
 
-        // Results Panel
+        // Results Panel - adjusted position for increased search panel location
         var resultsPanel = new Panel
         {
-            Location = new Point(20, 160),
-            Size = new Size(Math.Max(600, searchContent.Width - 40), Math.Max(400, searchContent.Height - 180)),
+            Location = new Point(20, 170), // Moved down from 160 to 170
+            Size = new Size(Math.Max(600, searchContent.Width - 40), Math.Max(400, searchContent.Height - 190)), // Adjusted height calculation
             BackColor = Color.White,
             BorderStyle = BorderStyle.FixedSingle,
             AutoScroll = true

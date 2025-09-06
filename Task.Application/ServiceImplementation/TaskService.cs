@@ -62,11 +62,13 @@ public class TaskService(ITaskRepository taskRepository) : ITaskService
 
     public async System.Threading.Tasks.Task AddTaskAsync(TaskItem task)
     {
+        ValidateTask(task);
         await System.Threading.Tasks.Task.Run(() => AddTask(task));
     }
 
     public async System.Threading.Tasks.Task UpdateTaskAsync(TaskItem task)
     {
+        ValidateTask(task);
         await System.Threading.Tasks.Task.Run(() => UpdateTask(task));
     }
 

@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Drawing;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -8,6 +9,7 @@ using Task.Application.ServiveInterface;
 
 namespace Task.WinFormsPresentation.Forms;
 
+[DesignerCategory("")]
 public partial class LoginForm : Form
 {
     private readonly IAuthService _authService;

@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Windows.Forms;
 using Task.Application.DTO;
 using Task.Application.ServiveInterface;
@@ -8,6 +9,7 @@ using TaskPriority = Task.Domain.Entities.TaskPriority;
 
 namespace Task.WinFormsPresentation.Forms;
 
+[DesignerCategory("")]
 public partial class TestForm : Form
 {
     private readonly IAuthService _authService;

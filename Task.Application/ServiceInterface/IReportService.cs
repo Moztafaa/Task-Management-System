@@ -1,7 +1,7 @@
 using System;
 using Task.Application.DTO;
 
-namespace Task.Application.ServiveInterface;
+namespace Task.Application.ServiceInterface;
 
 public interface IReportService
 {

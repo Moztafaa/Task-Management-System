@@ -1,5 +1,5 @@
 using System;
-using Task.Application.ServiveInterface;
+using Task.Domain.RepositoryInterface;
 using Task.Domain.Entities;
 using Task.Infrastructure.DatabaseContext;
 

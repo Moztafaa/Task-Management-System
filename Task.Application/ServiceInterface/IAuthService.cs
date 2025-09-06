@@ -2,7 +2,7 @@ using System;
 using Task.Application.DTO;
 using Task.Domain.Entities;
 
-namespace Task.Application.ServiveInterface;
+namespace Task.Application.ServiceInterface;
 
 public interface IAuthService
 {

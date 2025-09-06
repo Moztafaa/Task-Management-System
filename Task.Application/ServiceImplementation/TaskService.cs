@@ -1,6 +1,6 @@
 using System;
 using System.Linq;
-using Task.Application.ServiveInterface;
+using Task.Application.ServiceInterface;
 using Task.Domain.Entities;
 using Task.Domain.RepositoryInterface;
 

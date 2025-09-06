@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Extensions.DependencyInjection;
 using Task.Application.DTO;
-using Task.Application.ServiveInterface;
+using Task.Application.ServiceInterface;
 
 namespace Task.WinFormsPresentation.Forms;
 

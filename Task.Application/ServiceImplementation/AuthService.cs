@@ -1,7 +1,7 @@
 using System;
 using System.Net;
 using Task.Application.DTO;
-using Task.Application.ServiveInterface;
+using Task.Application.ServiceInterface;
 using Task.Application.Services;
 using Task.Application.Utilities;
 using Task.Domain.Entities;

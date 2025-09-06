@@ -1,6 +1,6 @@
 using System;
 using Task.Domain.Entities;
-namespace Task.Application.ServiveInterface;
+namespace Task.Application.ServiceInterface;
 
 public interface ICategoryService
 {

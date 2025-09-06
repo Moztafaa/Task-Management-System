@@ -2,7 +2,7 @@ using System;
 using System.ComponentModel;
 using System.Windows.Forms;
 using Task.Application.DTO;
-using Task.Application.ServiveInterface;
+using Task.Application.ServiceInterface;
 using Task.Domain.Entities;
 using TaskStatus = Task.Domain.Entities.TaskStatus;
 using TaskPriority = Task.Domain.Entities.TaskPriority;

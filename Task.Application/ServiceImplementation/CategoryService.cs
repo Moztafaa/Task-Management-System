@@ -1,5 +1,6 @@
 using System;
-using Task.Application.ServiveInterface;
+using Task.Application.ServiceInterface;
+using Task.Domain.RepositoryInterface;
 using Task.Domain.Entities;
 
 namespace Task.Application.ServiceImplementation;

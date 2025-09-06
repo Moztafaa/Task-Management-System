@@ -4,7 +4,7 @@ using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using Microsoft.Extensions.DependencyInjection;
-using Task.Application.ServiveInterface;
+using Task.Application.ServiceInterface;
 using Task.Application.Services;
 using Task.Domain.Entities;
 using TaskStatus = Task.Domain.Entities.TaskStatus;

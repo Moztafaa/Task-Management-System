@@ -3,7 +3,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
-using Task.Application.ServiveInterface;
+using Task.Application.ServiceInterface;
 using Task.Domain.Entities;
 
 namespace Task.WinFormsPresentation.Forms;

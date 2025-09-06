@@ -1,7 +1,7 @@
 using System;
 
 using Task.Domain.Entities;
-namespace Task.Application.ServiveInterface;
+namespace Task.Domain.RepositoryInterface;
 
 public interface ICategoryRepository
 {

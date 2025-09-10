@@ -36,6 +36,7 @@ public partial class DashboardForm : Form
     private Button btnAddTask = null!;
     private Button btnReports = null!;
     private Button btnSearch = null!;
+    private Button btnSideLogout = null!;
 
     // Content Area
     private Panel dashboardContent = null!;
@@ -287,6 +288,23 @@ public partial class DashboardForm : Form
         var btnCategories = CreateNavButton("📂 Categories", 400);
         btnCategories.Click += BtnCategories_Click;
 
+        // Logout button at the bottom of the side panel
+        btnSideLogout = new Button
+        {
+            Text = "🚪 Logout",
+            Size = new Size(210, 50),
+            Location = new Point(20, sidePanel.Height - 80), // Position at bottom with some padding
+            BackColor = Color.FromArgb(231, 76, 60),
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Font = new Font("Segoe UI", 12, FontStyle.Bold),
+            TextAlign = ContentAlignment.MiddleLeft,
+            Cursor = Cursors.Hand,
+            Anchor = AnchorStyles.Bottom | AnchorStyles.Left
+        };
+        btnSideLogout.FlatAppearance.BorderSize = 0;
+        btnSideLogout.Click += BtnLogout_Click;
+
         // Select dashboard by default
         SelectNavButton(btnDashboard);
 
@@ -304,6 +322,7 @@ public partial class DashboardForm : Form
         sidePanel.Controls.Add(btnReports);
         sidePanel.Controls.Add(btnSearch);
         sidePanel.Controls.Add(btnCategories);
+        sidePanel.Controls.Add(btnSideLogout);
     }
 
     private Button CreateNavButton(string text, int y)
@@ -325,19 +344,22 @@ public partial class DashboardForm : Form
 
     private void SelectNavButton(Button selected)
     {
-        // Reset all buttons
+        // Reset all buttons (except logout button which has its own styling)
         foreach (Control control in sidePanel.Controls)
         {
-            if (control is Button btn && btn != selected)
+            if (control is Button btn && btn != selected && btn != btnSideLogout)
             {
                 btn.BackColor = Color.Transparent;
                 btn.ForeColor = Color.FromArgb(189, 195, 199);
             }
         }
 
-        // Highlight selected
-        selected.BackColor = Color.FromArgb(44, 62, 80);
-        selected.ForeColor = Color.White;
+        // Highlight selected (but don't change logout button styling)
+        if (selected != btnSideLogout)
+        {
+            selected.BackColor = Color.FromArgb(44, 62, 80);
+            selected.ForeColor = Color.White;
+        }
     }
 
     private void CreateContentPanels()
@@ -1517,8 +1539,8 @@ public partial class DashboardForm : Form
                 Priority = Enum.Parse<TaskPriority>(cmbPriority.Text),
                 Status = TaskStatus.Pending,
                 CategoryId = categoryId,
-                DueDate = chkNoDueDate.Checked ? null : dtpDueDate.Value,
-                CreatedAt = DateTime.Now,
+                DueDate = chkNoDueDate.Checked ? null : DateTime.SpecifyKind(dtpDueDate.Value, DateTimeKind.Local).ToUniversalTime(),
+                CreatedAt = DateTime.UtcNow,
                 UserId = SessionManager.Instance.UserId
             };
 

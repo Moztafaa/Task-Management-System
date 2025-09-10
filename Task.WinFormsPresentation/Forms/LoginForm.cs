@@ -235,7 +235,7 @@ public partial class LoginForm : Form
         {
             Text = "Don't have an account?",
             Location = new Point(50, 450),
-            Size = new Size(150, 20),
+            Size = new Size(170, 20),
             Font = new Font("Segoe UI", 10),
             ForeColor = Color.FromArgb(127, 140, 141)
         };
@@ -243,7 +243,7 @@ public partial class LoginForm : Form
         btnRegister = new Button
         {
             Text = "Create Account",
-            Location = new Point(210, 445),
+            Location = new Point(230, 445),
             Size = new Size(120, 30),
             BackColor = Color.Transparent,
             ForeColor = Color.FromArgb(52, 152, 219),

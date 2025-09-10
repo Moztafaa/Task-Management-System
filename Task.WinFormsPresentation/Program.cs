@@ -58,12 +58,12 @@ static class Program
         services.AddScoped<ICategoryService, CategoryService>();
 
         // Forms
-        services.AddTransient<LoginForm>();
-        services.AddTransient<RegisterForm>();
-        services.AddTransient<DashboardForm>();
-        services.AddTransient<MainForm>();
-        services.AddTransient<Task.WinFormsPresentation.Forms.TestForm>();
-        services.AddTransient<LauncherForm>();
-        services.AddTransient<CategoryManagementForm>();
+        services.AddScoped<LoginForm>();
+        services.AddScoped<RegisterForm>();
+        services.AddScoped<DashboardForm>();
+        services.AddScoped<MainForm>();
+        services.AddScoped<Task.WinFormsPresentation.Forms.TestForm>();
+        services.AddScoped<LauncherForm>();
+        services.AddScoped<CategoryManagementForm>();
     }
 }

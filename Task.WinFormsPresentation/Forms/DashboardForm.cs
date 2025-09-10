@@ -2138,13 +2138,18 @@ public partial class DashboardForm : Form
         if (result == DialogResult.Yes)
         {
             SessionManager.Instance.Logout();
+            this.DialogResult = DialogResult.Retry; // Indicates logout and return to login
             this.Close();
         }
     }
 
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
-        System.Windows.Forms.Application.Exit();
+        // Only exit application if DialogResult is not Retry (logout)
+        if (this.DialogResult != DialogResult.Retry)
+        {
+            System.Windows.Forms.Application.Exit();
+        }
         base.OnFormClosed(e);
     }
 }

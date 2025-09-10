@@ -27,15 +27,29 @@ static class Program
         ConfigureServices(services);
         ServiceProvider = services.BuildServiceProvider();
 
-        // Start with Login Form
-        var loginForm = ServiceProvider.GetRequiredService<LoginForm>();
-        var loginResult = loginForm.ShowDialog();
-
-        if (loginResult == DialogResult.OK)
+        // Main application loop - keeps showing login until user exits
+        bool shouldContinue = true;
+        while (shouldContinue)
         {
-            // Show Dashboard
-            var dashboardForm = ServiceProvider.GetRequiredService<DashboardForm>();
-            Application.Run(dashboardForm);
+            // Start with Login Form
+            var loginForm = ServiceProvider.GetRequiredService<LoginForm>();
+            var loginResult = loginForm.ShowDialog();
+
+            if (loginResult == DialogResult.OK)
+            {
+                // Show Dashboard
+                var dashboardForm = ServiceProvider.GetRequiredService<DashboardForm>();
+                var dashboardResult = dashboardForm.ShowDialog();
+
+                // If dashboard returns Retry, it means user logged out and wants to login again
+                // If dashboard returns anything else (Cancel, etc.), exit the application
+                shouldContinue = (dashboardResult == DialogResult.Retry);
+            }
+            else
+            {
+                // User cancelled login or closed login form - exit application
+                shouldContinue = false;
+            }
         }
 
         ServiceProvider.Dispose();

@@ -1,4 +1,5 @@
 using System;
+using Microsoft.EntityFrameworkCore;
 using Task.Domain.Entities;
 using Task.Domain.RepositoryInterface;
 using Task.Infrastructure.DatabaseContext;
@@ -59,7 +60,29 @@ public class UserRepository(AppDbContext context) : IUserRepository
 
     public void Update(User user)
     {
-        context.Users.Update(user);
+        // First, detach any existing tracked entity with the same ID
+        var trackedEntities = context.ChangeTracker.Entries<User>()
+            .Where(e => e.Entity.Id == user.Id)
+            .ToList();
+
+        foreach (var trackedEntity in trackedEntities)
+        {
+            trackedEntity.State = EntityState.Detached;
+        }
+
+        // Find the existing entity in the database and update it
+        var existingUser = context.Users.Find(user.Id);
+        if (existingUser != null)
+        {
+            // Update properties
+            context.Entry(existingUser).CurrentValues.SetValues(user);
+        }
+        else
+        {
+            // If not found, add as new (shouldn't happen in normal update scenario)
+            context.Users.Update(user);
+        }
+
         context.SaveChanges();
     }
 }

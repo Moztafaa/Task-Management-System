@@ -45,7 +45,29 @@ public class TaskRepository(AppDbContext context) : ITaskRepository
     }
     public void Update(TaskItem task)
     {
-        context.Tasks.Update(task);
+        // First, detach any existing tracked entity with the same ID
+        var trackedEntities = context.ChangeTracker.Entries<TaskItem>()
+            .Where(e => e.Entity.Id == task.Id)
+            .ToList();
+
+        foreach (var trackedEntity in trackedEntities)
+        {
+            trackedEntity.State = EntityState.Detached;
+        }
+
+        // Find the existing entity in the database and update it
+        var existingTask = context.Tasks.Find(task.Id);
+        if (existingTask != null)
+        {
+            // Update properties
+            context.Entry(existingTask).CurrentValues.SetValues(task);
+        }
+        else
+        {
+            // If not found, add as new (shouldn't happen in normal update scenario)
+            context.Tasks.Update(task);
+        }
+
         context.SaveChanges();
     }
 

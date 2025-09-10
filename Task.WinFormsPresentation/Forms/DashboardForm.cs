@@ -572,7 +572,9 @@ public partial class DashboardForm : Form
         };
 
         // Load recent tasks
-        var recentTasks = _taskService.GetAllTasks()?.OrderByDescending(t => t.CreatedAt).Take(10).ToList() ?? new List<TaskItem>();
+        var recentTasks = _currentUser != null
+            ? _taskService.GetUserTasks(_currentUser.Id)?.OrderByDescending(t => t.CreatedAt).Take(10).ToList() ?? new List<TaskItem>()
+            : new List<TaskItem>();
         foreach (var task in recentTasks)
         {
             taskList.Items.Add($"{task.Title} - {task.Status}");

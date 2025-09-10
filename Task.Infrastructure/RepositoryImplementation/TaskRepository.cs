@@ -30,6 +30,15 @@ public class TaskRepository(AppDbContext context) : ITaskRepository
         return context.Tasks.AsNoTracking().ToList();
     }
 
+    public IEnumerable<TaskItem>? GetTasksByUser(Guid userId)
+    {
+        return context.Tasks
+            .AsNoTracking()
+            .Where(t => t.UserId == userId)
+            .Include(t => t.Category)
+            .ToList();
+    }
+
     public TaskItem? GetById(Guid id)
     {
         return context.Tasks.AsNoTracking().FirstOrDefault(t => t.Id == id);

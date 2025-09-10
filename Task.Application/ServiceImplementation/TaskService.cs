@@ -33,6 +33,11 @@ public class TaskService(ITaskRepository taskRepository) : ITaskService
         return taskRepository.GetAll();
     }
 
+    public IEnumerable<TaskItem>? GetUserTasks(Guid userId)
+    {
+        return taskRepository.GetTasksByUser(userId);
+    }
+
     public TaskItem? GetTaskById(Guid id)
     {
         return taskRepository.GetById(id);

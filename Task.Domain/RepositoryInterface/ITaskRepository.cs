@@ -10,6 +10,7 @@ public interface ITaskRepository
     void Add(TaskItem task);
     TaskItem? GetById(Guid id);
     IEnumerable<TaskItem>? GetAll();
+    IEnumerable<TaskItem>? GetTasksByUser(Guid userId);
     void Update(TaskItem task);
     void Delete(Guid id);
 

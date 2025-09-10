@@ -9,6 +9,7 @@ public interface ITaskService
     void AddTask(TaskItem task);
     TaskItem? GetTaskById(Guid id);
     IEnumerable<TaskItem>? GetAllTasks();
+    IEnumerable<TaskItem>? GetUserTasks(Guid userId);
     void UpdateTask(TaskItem task);
     void DeleteTask(Guid id);
 
